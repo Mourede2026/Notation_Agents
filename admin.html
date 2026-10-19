@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Administration – Évaluation de la performance du personnel</title>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#fff; --text:#1c2421; --muted:#5d6b66; --line:#d9e0dd;
+  --brand:#1f7a5a; --brand-ink:#fff; --good:#1f7a5a; --warn:#b7791f; --bad:#b3372f; --chip:#eaf2ee; --focus:#1f7a5a55;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#111715; --card:#1a2220; --text:#e8efec; --muted:#9fb0a9; --line:#2d3935; --brand:#3fb68b; --brand-ink:#08130f;
+    --good:#3fb68b; --warn:#e0a840; --bad:#ee7b72; --chip:#223029; --focus:#3fb68b55; color-scheme: dark; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:calc(14px + env(safe-area-inset-top,0px)) 16px 12px;background:var(--brand);color:var(--brand-ink);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+header h1{margin:0;font-size:1.1rem}
+header small{display:block;opacity:.9}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.card h2{margin:0 0 10px;font-size:1rem}
+input,select,button{font:inherit;color:var(--text)}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:42px;width:100%}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);border-color:var(--brand)}
+button{cursor:pointer;min-height:42px;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:8px 14px;font-weight:600}
+button.pri{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+header button{background:transparent;color:var(--brand-ink);border-color:#ffffff88}
+.login{max-width:380px;margin:60px auto}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.filters label{font-size:.78rem;color:var(--muted);display:block;margin-bottom:3px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kpi b{display:block;font-size:1.6rem;line-height:1.2}
+.kpi span{font-size:.8rem;color:var(--muted)}
+.good{color:var(--good)} .mid{color:var(--warn)} .bad{color:var(--bad)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;cursor:default}
+th.sort{cursor:pointer}
+td.n,th.n{text-align:right}
+tr.click{cursor:pointer}
+tr.click:hover{background:var(--chip)}
+.stack{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--chip);min-width:120px}
+.stack i{display:block;height:100%}
+.hist{display:flex;align-items:flex-end;gap:6px;height:150px;padding-top:8px}
+.hist div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:.72rem;color:var(--muted)}
+.hist i{display:block;width:100%;border-radius:6px 6px 0 0;min-height:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.pill{display:inline-block;border-radius:99px;padding:2px 9px;font-size:.75rem;font-weight:700;background:var(--chip)}
+.err{color:var(--bad);font-weight:600;margin:8px 0}
+.hide{display:none!important}
+.bar1{display:inline-block;height:8px;border-radius:99px;vertical-align:middle;margin-right:6px}
+.modal{position:fixed;inset:0;background:#0009;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;z-index:20}
+.modal .box{background:var(--card);border-radius:14px;max-width:720px;width:100%;padding:16px;border:1px solid var(--line)}
+.sec{margin:14px 0 4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--brand);font-weight:700}
+.dline{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Administration · Évaluation de la performance</h1><small>ZS Djidja-Abomey-Agbangnizoun</small></div>
+  <div id="hdrBtns" class="hide"><button id="refresh" type="button">Actualiser</button> <button id="logout" type="button">Se déconnecter</button></div>
+</header>
+
+<main>
+  <div id="loginBox" class="card login">
+    <h2>Accès administrateur</h2>
+    <p style="color:var(--muted);margin-top:0">Saisissez le mot de passe défini dans le script Google.</p>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Mot de passe">
+    <div id="loginErr" class="err hide"></div>
+    <button id="loginBtn" class="pri" type="button" style="width:100%;margin-top:10px">Se connecter</button>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="card">
+      <h2>Filtres</h2>
+      <div class="filters">
+        <div><label for="fCorps">Corps de métier</label><select id="fCorps"></select></div>
+        <div><label for="fCentre">Centre de santé</label><select id="fCentre"></select></div>
+        <div><label for="fPeriode">Période</label><select id="fPeriode"></select></div>
+        <div><label for="fDec">Décision</label>
+          <select id="fDec"><option value="">Toutes</option><option value="TRES_BON">Très bon (≥ 80 %)</option><option value="RESERVE">Avec réserve (60–80 %)</option><option value="BLAME">Blâme (&lt; 60 %)</option></select></div>
+        <div><label for="fSearch">Recherche (nom, évaluateur)</label><input id="fSearch" placeholder="Rechercher…"></div>
+      </div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card"><h2>Statistiques par corps de métier</h2><div class="tw" id="tCorps"></div>
+      <div class="legend"><span><i style="background:var(--good)"></i>Très bon</span><span><i style="background:var(--warn)"></i>Avec réserve</span><span><i style="background:var(--bad)"></i>Blâme</span></div></div>
+
+    <div class="card"><h2>Répartition des performances</h2><div class="hist" id="hist"></div>
+      <div class="legend"><span>Nombre d’évaluations par tranche de 10 %</span></div></div>
+
+    <div class="card"><h2>Statistiques par centre de santé</h2><div class="tw" id="tCentre"></div></div>
+
+    <div class="card"><h2>Critères les moins bien réussis (par corps)</h2><div id="weak"></div></div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+        <h2 style="margin:0">Liste des évaluations <span id="cnt" class="pill"></span></h2>
+        <button id="csv" type="button">Exporter en CSV</button>
+      </div>
+      <div class="tw" id="tList"></div>
+    </div>
+  </div>
+</main>
+
+<div id="modal" class="modal hide"><div class="box" id="modalBox"></div></div>
+
+<script>
+/* ===== CONFIGURATION : même URL que le formulaire ===== */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhrW3aFcugrcpPNknq0Xwyk1SLryu1cnuDlVKbZDCpaUplu8Jxj1eg5WbPfrp9E467JA/exec';
+const SEUIL_TRES_BON = 80, SEUIL_RESERVE = 60;
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = n => (Math.round(n*10)/10).toString().replace('.',',');
+const dec = p => p>=SEUIL_TRES_BON ? {c:'TRES_BON',t:'Très bon',cls:'good'} : p>=SEUIL_RESERVE ? {c:'RESERVE',t:'Avec réserve',cls:'mid'} : {c:'BLAME',t:'Blâme',cls:'bad'};
+const COL = {good:'var(--good)',mid:'var(--warn)',bad:'var(--bad)'};
+
+let DATA = {evals:[],details:[]};
+let sortKey='date', sortDir=-1;
+
+/* ===== Connexion ===== */
+function ssGet(){ try{ return sessionStorage.getItem('adm_pw')||''; }catch(e){ return ''; } }
+function ssSet(v){ try{ v?sessionStorage.setItem('adm_pw',v):sessionStorage.removeItem('adm_pw'); }catch(e){} }
+
+async function load(pw){
+  const r = await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'admin',password:pw})});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'Erreur serveur');
+  DATA = j; return j;
+}
+async function login(pw){
+  $('loginBtn').disabled=true; $('loginBtn').textContent='Connexion…'; $('loginErr').classList.add('hide');
+  try{
+    await load(pw); ssSet(pw);
+    $('loginBox').classList.add('hide'); $('app').classList.remove('hide'); $('hdrBtns').classList.remove('hide');
+    initFilters(); render();
+  }catch(e){
+    ssSet(''); $('loginErr').textContent = (e.message==='Failed to fetch'?'Connexion impossible. Vérifiez internet.':e.message); $('loginErr').classList.remove('hide');
+  }
+  $('loginBtn').disabled=false; $('loginBtn').textContent='Se connecter';
+}
+$('loginBtn').addEventListener('click',()=>login($('pw').value));
+$('pw').addEventListener('keydown',e=>{ if(e.key==='Enter') login($('pw').value); });
+$('logout').addEventListener('click',()=>{ ssSet(''); location.reload(); });
+$('refresh').addEventListener('click',async()=>{
+  $('refresh').disabled=true; try{ await load(ssGet()); initFilters(true); render(); }catch(e){ alert(e.message); } $('refresh').disabled=false;
+});
+if(ssGet()) login(ssGet());
+
+/* ===== Filtres ===== */
+function fillSelect(id,values,allLabel){
+  const el=$(id), cur=el.value;
+  el.innerHTML = `<option value="">${allLabel}</option>` + values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(values.includes(cur)) el.value=cur;
+}
+const uniq = k => [...new Set(DATA.evals.map(e=>e[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+function initFilters(keep){
+  fillSelect('fCorps',uniq('corps'),'Tous les corps');
+  fillSelect('fCentre',uniq('centre'),'Tous les centres');
+  fillSelect('fPeriode',uniq('periode'),'Toutes les périodes');
+}
+['fCorps','fCentre','fPeriode','fDec'].forEach(i=>$(i).addEventListener('change',render));
+$('fSearch').addEventListener('input',render);
+
+function filtered(){
+  const c=$('fCorps').value, ce=$('fCentre').value, p=$('fPeriode').value, d=$('fDec').value, q=$('fSearch').value.trim().toLowerCase();
+  return DATA.evals.filter(e=>
+    (!c||e.corps===c)&&(!ce||e.centre===ce)&&(!p||e.periode===p)&&(!d||dec(e.pct).c===d)&&
+    (!q||(e.nom+' '+e.evaluateur).toLowerCase().includes(q)));
+}
+
+/* ===== Calculs ===== */
+function stats(list){
+  const n=list.length; if(!n) return {n:0,avg:0,min:0,max:0,g:0,m:0,b:0};
+  const ps=list.map(e=>e.pct);
+  return {n, avg:ps.reduce((a,b)=>a+b,0)/n, min:Math.min(...ps), max:Math.max(...ps),
+    g:ps.filter(p=>dec(p).c==='TRES_BON').length, m:ps.filter(p=>dec(p).c==='RESERVE').length, b:ps.filter(p=>dec(p).c==='BLAME').length};
+}
+function groupBy(list,k){ const o={}; list.forEach(e=>(o[e[k]||'—']=o[e[k]||'—']||[]).push(e)); return o; }
+function stackBar(s){
+  if(!s.n) return '';
+  const w=x=>(x/s.n*100).toFixed(1)+'%';
+  return `<div class="stack" title="Très bon ${s.g} · Avec réserve ${s.m} · Blâme ${s.b}"><i style="width:${w(s.g)};background:var(--good)"></i><i style="width:${w(s.m)};background:var(--warn)"></i><i style="width:${w(s.b)};background:var(--bad)"></i></div>`;
+}
+
+/* ===== Rendu ===== */
+function render(){
+  const list = filtered(), s = stats(list);
+
+  $('kpis').innerHTML = [
+    ['Évaluations',s.n,''],
+    ['Performance moyenne', s.n?fmt(s.avg)+' %':'—', s.n?dec(s.avg).cls:''],
+    ['Très bon (≥ 80 %)', s.g+(s.n?` · ${Math.round(s.g/s.n*100)} %`:''),'good'],
+    ['Avec réserve (60–80 %)', s.m+(s.n?` · ${Math.round(s.m/s.n*100)} %`:''),'mid'],
+    ['Blâme (< 60 %)', s.b+(s.n?` · ${Math.round(s.b/s.n*100)} %`:''),'bad']
+  ].map(k=>`<div class="kpi"><span>${k[0]}</span><b class="${k[2]}">${k[1]}</b></div>`).join('');
+
+  // par corps
+  const gc = groupBy(list,'corps');
+  $('tCorps').innerHTML = tableHtml(['Corps','Évaluations','Moyenne','Min','Max','Très bon','Réserve','Blâme','Répartition'],
+    Object.keys(gc).sort().map(k=>{ const x=stats(gc[k]);
+      return `<tr><td>${esc(k)}</td><td class="n">${x.n}</td><td class="n"><b class="${dec(x.avg).cls}">${fmt(x.avg)} %</b></td><td class="n">${fmt(x.min)} %</td><td class="n">${fmt(x.max)} %</td><td class="n">${x.g}</td><td class="n">${x.m}</td><td class="n">${x.b}</td><td>${stackBar(x)}</td></tr>`; }), [1,2,3,4,5,6,7]);
+
+  // histogramme
+  const bins=Array(10).fill(0); list.forEach(e=>{ bins[Math.min(9,Math.floor(e.pct/10))]++; });
+  const mx=Math.max(1,...bins);
+  $('hist').innerHTML = bins.map((c,i)=>{ const col = i>=8?COL.good : i>=6?COL.mid : COL.bad;
+    return `<div><span>${c||''}</span><i style="height:${(c/mx*100).toFixed(0)}%;background:${col}"></i><span>${i*10}${i===9?'–100':''}</span></div>`; }).join('');
+
+  // par centre
+  const gz = groupBy(list,'centre');
+  $('tCentre').innerHTML = tableHtml(['Centre de santé','Évaluations','Moyenne','Très bon','Réserve','Blâme','Répartition'],
+    Object.keys(gz).map(k=>[k,stats(gz[k])]).sort((a,b)=>b[1].avg-a[1].avg).map(([k,x])=>
+      `<tr><td>${esc(k)}</td><td class="n">${x.n}</td><td class="n"><b class="${dec(x.avg).cls}">${fmt(x.avg)} %</b></td><td class="n">${x.g}</td><td class="n">${x.m}</td><td class="n">${x.b}</td><td>${stackBar(x)}</td></tr>`),[1,2,3,4,5]);
+
+  // critères faibles
+  const idCorps={}; list.forEach(e=>idCorps[e.id]=e.corps);
+  const agg={};
+  DATA.details.forEach(d=>{ const c=idCorps[d.id]; if(!c||d.na||!d.max) return;
+    const key=c+'||'+d.code; const o=agg[key]=agg[key]||{corps:c,item:d.item,s:0,m:0,n:0}; o.s+=d.note; o.m+=d.max; o.n++; });
+  const byC={}; Object.values(agg).forEach(o=>(byC[o.corps]=byC[o.corps]||[]).push(o));
+  $('weak').innerHTML = Object.keys(byC).sort().map(c=>{
+    const rows=byC[c].map(o=>({...o,p:o.s/o.m*100})).sort((a,b)=>a.p-b.p).slice(0,6);
+    return `<h3 style="margin:14px 0 6px;font-size:.9rem">${esc(c)}</h3><div class="tw">`+tableHtml(['Critère','Réussite','Évaluations'],
+      rows.map(r=>`<tr><td style="white-space:normal">${esc(r.item)}</td><td><span class="bar1" style="width:${Math.max(3,r.p*0.8)}px;background:${COL[dec(r.p).cls]}"></span>${fmt(r.p)} %</td><td class="n">${r.n}</td></tr>`),[2])+`</div>`; }).join('') || '<p style="color:var(--muted)">Aucune donnée.</p>';
+
+  renderList(list);
+}
+
+function tableHtml(head,rows,numCols){
+  numCols=numCols||[];
+  return `<table><thead><tr>${head.map((h,i)=>`<th class="${numCols.includes(i)?'n':''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${head.length}" style="color:var(--muted)">Aucune donnée</td></tr>`}</tbody></table>`;
+}
+
+function renderList(list){
+  $('cnt').textContent = list.length;
+  const cols=[['date','Date'],['nom','Agent'],['corps','Corps'],['centre','Centre'],['periode','Période'],['evaluateur','Évaluateur'],['pct','Performance'],['dec','Décision']];
+  const val=(e,k)=> k==='dec'? e.pct : e[k];
+  const sorted=[...list].sort((a,b)=>{ const x=val(a,sortKey), y=val(b,sortKey);
+    return (typeof x==='number'? x-y : String(x).localeCompare(String(y),'fr'))*sortDir; });
+  $('tList').innerHTML = `<table><thead><tr>${cols.map(([k,l])=>`<th class="sort" data-k="${k}">${l}${sortKey===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>`+
+    (sorted.map(e=>{ const d=dec(e.pct);
+      return `<tr class="click" data-id="${esc(e.id)}"><td>${esc(e.date)}</td><td>${esc(e.nom)}</td><td>${esc(e.corps)}</td><td>${esc(e.centre)}</td><td>${esc(e.periode)}</td><td>${esc(e.evaluateur)}</td><td class="n"><b class="${d.cls}">${fmt(e.pct)} %</b></td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }).join('')
+      || `<tr><td colspan="8" style="color:var(--muted)">Aucune évaluation</td></tr>`)+`</tbody></table>`;
+}
+$('tList').addEventListener('click',e=>{
+  const th=e.target.closest('th.sort');
+  if(th){ const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(k==='pct'||k==='dec'||k==='date')?-1:1;} renderList(filtered()); return; }
+  const tr=e.target.closest('tr.click'); if(tr) openDetail(tr.dataset.id);
+});
+
+/* ===== Détail d’une évaluation ===== */
+function openDetail(id){
+  const ev = DATA.evals.find(e=>e.id===id); if(!ev) return;
+  const rows = DATA.details.filter(d=>d.id===id), d = dec(ev.pct);
+  let h = `<div style="display:flex;justify-content:space-between;gap:10px"><div><h2 style="margin:0">${esc(ev.nom)}</h2><div style="color:var(--muted)">${esc(ev.qualification)} · ${esc(ev.corps)}<br>${esc(ev.centre)} · ${esc(ev.date)} ${ev.periode?'· '+esc(ev.periode):''}<br>Évaluateur : ${esc(ev.evaluateur)}</div></div><button id="mClose" type="button">Fermer</button></div>
+    <p style="font-size:1.4rem;margin:12px 0 0"><b class="${d.cls}">${fmt(ev.pct)} %</b> <span class="pill ${d.cls}">${d.t}</span> <span style="color:var(--muted);font-size:.85rem">(${ev.note} / ${ev.maximum})</span></p>`;
+  let cur='';
+  rows.forEach(r=>{ if(r.section!==cur){ cur=r.section; h+=`<div class="sec">${esc(cur)}</div>`; }
+    h+=`<div class="dline"><span>${esc(r.item)}</span><b class="${r.na?'':(r.note>=r.max?'good':r.note>0?'mid':'bad')}">${r.na?'NA':r.note+' / '+r.max}</b></div>`; });
+  $('modalBox').innerHTML=h; $('modal').classList.remove('hide');
+  $('mClose').addEventListener('click',()=>$('modal').classList.add('hide'));
+}
+$('modal').addEventListener('click',e=>{ if(e.target===$('modal')) $('modal').classList.add('hide'); });
+
+/* ===== Export CSV ===== */
+$('csv').addEventListener('click',()=>{
+  const list=filtered();
+  const head=['Date','Période','Corps','Centre','Agent','Qualification','Évaluateur','Note','Maximum','Performance (%)','Décision'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[head.map(q).join(';')].concat(list.map(e=>[e.date,e.periode,e.corps,e.centre,e.nom,e.qualification,e.evaluateur,e.note,e.maximum,String(e.pct).replace('.',','),dec(e.pct).t].map(q).join(';')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='evaluations_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Évaluation de la performance du personnel – ZS DAA</title>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#ffffff; --text:#1c2421; --muted:#5d6b66; --line:#d9e0dd;
+  --brand:#1f7a5a; --brand-ink:#ffffff; --good:#1f7a5a; --warn:#b7791f; --bad:#b3372f;
+  --chip:#eaf2ee; --focus:#1f7a5a55;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#111715; --card:#1a2220; --text:#e8efec; --muted:#9fb0a9; --line:#2d3935;
+    --brand:#3fb68b; --brand-ink:#08130f; --good:#3fb68b; --warn:#e0a840; --bad:#ee7b72; --chip:#223029; --focus:#3fb68b55; color-scheme: dark; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+header{padding:calc(16px + env(safe-area-inset-top,0px)) 16px 12px;background:var(--brand);color:var(--brand-ink)}
+header h1{margin:0;font-size:1.15rem;line-height:1.25}
+header p{margin:4px 0 0;font-size:.85rem;opacity:.9}
+main{max-width:720px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.card h2{margin:0 0 10px;font-size:1rem}
+label.f{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
+input,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:44px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);border-color:var(--brand)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:480px){.row2{grid-template-columns:1fr}}
+.section-title{margin:22px 4px 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--brand);font-weight:700}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0}
+.item.missing{border-color:var(--bad);box-shadow:0 0 0 3px #b3372f22}
+.item .lbl{font-weight:600}
+.item .pts{float:right;margin-left:8px;font-size:.78rem;font-weight:600;background:var(--chip);border-radius:999px;padding:2px 9px;color:var(--muted)}
+.item .hint{font-size:.82rem;color:var(--muted);margin:4px 0 8px}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+.opt{flex:1 1 90px;min-height:44px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-weight:600;cursor:pointer;padding:8px 10px}
+.opt.sel.yes{background:var(--good);border-color:var(--good);color:var(--brand-ink)}
+.opt.sel.no{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt.sel.na{background:var(--muted);border-color:var(--muted);color:var(--bg)}
+.crit{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--line)}
+.crit:first-of-type{border-top:0}
+.crit input{width:24px;height:24px;min-height:0;margin:1px 0 0;flex:none;accent-color:var(--brand)}
+.crit span{flex:1}
+.crit em{font-style:normal;color:var(--muted);font-size:.78rem;white-space:nowrap}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+.bar-in{max-width:720px;margin:0 auto}
+.bar-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.pct{font-size:1.5rem;font-weight:800}
+.dec{font-size:.85rem;font-weight:700}
+.track{height:8px;border-radius:99px;background:var(--chip);margin:6px 0 8px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--muted);transition:width .25s}
+.small{font-size:.78rem;color:var(--muted)}
+.go{width:100%;min-height:48px;border:0;border-radius:12px;background:var(--brand);color:var(--brand-ink);font:inherit;font-weight:700;cursor:pointer;margin-top:6px}
+.go[disabled]{opacity:.6}
+.notice{border-radius:12px;padding:10px 12px;margin:10px 0;font-size:.88rem}
+.notice.warn{background:#b7791f22;border:1px solid var(--warn)}
+.notice.ok{background:#1f7a5a22;border:1px solid var(--good)}
+.notice button{margin-top:6px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;min-height:40px}
+.result{text-align:center}
+.result .pct{font-size:2.6rem}
+.hide{display:none!important}
+.good{color:var(--good)} .mid{color:var(--warn)} .bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Évaluation de la performance individuelle</h1>
+  <p>Zone sanitaire Djidja-Abomey-Agbangnizoun · DDS Zou</p>
+</header>
+
+<main>
+  <div id="cfgWarn" class="notice warn hide">L’adresse du serveur Google Sheets n’est pas encore renseignée dans le fichier (constante <b>APPS_SCRIPT_URL</b>). Les évaluations resteront en attente sur ce téléphone.</div>
+  <div id="queueBox" class="notice warn hide"><span id="queueTxt"></span><br><button id="retryBtn" type="button">Renvoyer maintenant</button></div>
+
+  <div id="formWrap">
+    <div class="card">
+      <h2>Agent évalué</h2>
+      <label class="f" for="corps">Corps de métier (grille à utiliser)</label>
+      <select id="corps"><option value="">— Choisir —</option></select>
+
+      <label class="f" for="centre">Centre de santé</label>
+      <input id="centre" autocomplete="off" placeholder="Nom du centre de santé">
+
+      <label class="f" for="nom">Nom et prénom de l’agent</label>
+      <input id="nom" autocomplete="off">
+
+      <label class="f" for="qualif">Qualification</label>
+      <input id="qualif" autocomplete="off" placeholder="Ex. Sage-femme, Infirmier, Aide-soignant, Commis">
+
+      <div class="row2">
+        <div><label class="f" for="date">Date de l’évaluation</label><input id="date" type="date"></div>
+        <div><label class="f" for="periode">Période évaluée</label><input id="periode" placeholder="Ex. T3 2026"></div>
+      </div>
+
+      <label class="f" for="evaluateur">Nom de l’évaluateur</label>
+      <input id="evaluateur" autocomplete="off">
+
+      <div id="codeWrap" class="hide">
+        <label class="f" for="code">Code d’accès (fourni par l’administration)</label>
+        <input id="code" autocomplete="off">
+      </div>
+    </div>
+
+    <div id="intro" class="small" style="padding:0 6px">Choisissez d’abord le corps de métier : la grille correspondante s’affiche.</div>
+    <div id="grid"></div>
+  </div>
+
+  <div id="done" class="card result hide">
+    <h2>Évaluation enregistrée</h2>
+    <div class="pct" id="rPct"></div>
+    <div class="dec" id="rDec"></div>
+    <p id="rSync" class="small"></p>
+    <button class="go" id="again" type="button">Nouvelle évaluation</button>
+  </div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="bar-in">
+    <div class="bar-top"><span class="pct" id="bPct">0 %</span><span class="dec" id="bDec">—</span></div>
+    <div class="track"><div class="fill" id="bFill"></div></div>
+    <div class="small" id="bInfo">Note 0 / 0 · 0 critère(s) sur 0 renseigné(s)</div>
+    <button class="go" id="submit" type="button">Enregistrer l’évaluation</button>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIGURATION ============ */
+// Collez ici l’URL du déploiement Google Apps Script (se termine par /exec)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhrW3aFcugrcpPNknq0Xwyk1SLryu1cnuDlVKbZDCpaUplu8Jxj1eg5WbPfrp9E467JA/exec';
+
+// Seuils de décision (en %)
+const SEUIL_TRES_BON = 80;   // 80 % et plus
+const SEUIL_RESERVE  = 60;   // 60 % à moins de 80 %
+
+function decision(p){
+  if (p >= SEUIL_TRES_BON) return {code:'TRES_BON', txt:'Très bon – reconduire', cls:'good'};
+  if (p >= SEUIL_RESERVE)  return {code:'RESERVE',  txt:'Reconduire avec réserve – signature d’un contrat de 3 mois', cls:'mid'};
+  return {code:'BLAME', txt:'Blâme – contrat non renouvelé', cls:'bad'};
+}
+
+/* ============ DÉFINITION DES GRILLES ============ */
+// B = tout ou rien (max points ou 0), option NA
+// A = « toutes les conditions » : points complets seulement si toutes les cases sont cochées
+// C = critères : chaque case cochée rapporte w points
+const B=(id,label,max,hint,o={})=>Object.assign({id,label,max,hint,type:'bin'},o);
+const A=(id,label,max,crit,hint)=>({id,label,max,hint,type:'all',crit});
+const C=(id,label,crit,hint)=>({id,label,hint,type:'crit',crit,max:crit.reduce((s,c)=>s+c.w,0)});
+
+const DISCIPLINE_COMMUN = [
+  B('reunions','Participation aux réunions statutaires',2,'Présence à 100 % ou absence justifiée. 0 si absence non justifiée.'),
+  B('assiduite','Assiduité et ponctualité',2,'Bonne ponctualité et assiduité, absences justifiées.'),
+  B('tenue','Port de tenue correcte et réglementaire',2,'2 points si tenue correcte et réglementaire, 0 sinon.'),
+  B('demandes','Nombre de demandes d’explication reçues',2,'2 points si aucune demande, 0 dès qu’une demande a été reçue.',{yes:'Aucune',no:'Une ou plus'}),
+  B('accueil','Accueil des patients',5,'5 points si bon accueil, 0 dans le cas contraire.',{yes:'Bon accueil',no:'Mauvais accueil'})
+];
+
+const GRIDS = {
+  maternite:{
+    label:'Sages-femmes / personnel qualifié de la maternité',
+    sections:[
+      {name:'PEC des cas pathologiques / IST', items:[
+        B('pec_proto','Respect du protocole de prise en charge',3,'Diagnostic correct selon les symptômes et traitement approprié (à recueillir à l’entretien).')
+      ]},
+      {name:'CPN', items:[
+        A('cpn','Carte maternelle et facteurs de risque',3,[
+          'Remplissage correct de la carte maternelle (conforme à la grille qualité)',
+          'Adéquation des actions en cas de détection de facteurs de risque'],
+          'Carte validée si les deux items sont corrects (entretien et exploitation documentaire).')
+      ]},
+      {name:'CPoN', items:[
+        B('cpon','Respect du protocole de prise en charge',2,'Examen au spéculum, toucher vaginal, conseils et examen du nouveau-né (entretien). 0 si non maîtrise.')
+      ]},
+      {name:'Accouchement', items:[
+        A('accouch','Surveillance de l’accouchement et GATPA',4,[
+          'Respect du protocole de surveillance de l’accouchement (grille de qualité globale)',
+          'Respect des trois gestes de la GATPA'],
+          'Validé si les deux items sont corrects (exploitation documentaire et entretien).')
+      ]},
+      {name:'PF', items:[
+        A('pf','Cartes PF et effets secondaires',4,[
+          'Remplissage correct des cartes',
+          'Adéquation des actions en cas d’effets secondaires'],
+          'Validé si les deux items sont corrects (entretien et exploitation documentaire).')
+      ]},
+      {name:'SONU', items:[
+        B('hbb','Réanimation du nouveau-né selon HBB',5,'Maîtrise de la technique : 5 points, 0 dans le cas contraire.'),
+        B('mgso4','Administration du sulfate de magnésium',5,'Dosage, posologie, effets secondaires et CAT en cas de surdosage. 0 si une seule mauvaise réponse.'),
+        B('amiu','AMIU (indications et technique)',2,'Bonne maîtrise des indications et de la technique.')
+      ]},
+      {name:'Outils, supports de données et discipline', items:[
+        B('reg_acc','Registre d’accouchement rempli complètement et correctement',2,'Remplissage correct du registre.'),
+        B('reg_smi','Registre SMI rempli complètement et correctement',2,'Enregistrement de toutes les données (C6) : CPN, accouchement, PF du trimestre.')
+      ].concat(DISCIPLINE_COMMUN)}
+    ]
+  },
+
+  dispensaire:{
+    label:'Infirmiers (dispensaire et PEV)',
+    sections:[
+      {name:'PEC des cas pathologiques / IST', items:[
+        B('ist','Respect du protocole de prise en charge des IST',3,'À recueillir à l’entretien. 3 points si bonne maîtrise, 0 sinon.'),
+        C('patho','Prise en charge des cas pathologiques',[
+          {l:'Paludisme simple',w:1},{l:'Paludisme grave',w:1},{l:'IRA',w:1},{l:'Diarrhées aiguës',w:1},{l:'HTA grade 1',w:1}],
+          '1 point par affection dont la PEC est bien maîtrisée.')
+      ]},
+      {name:'Malnutrition', items:[
+        B('malnut','Respect du protocole de PEC',3,'3 points si bonne maîtrise (l’utilisation de la bâche est autorisée). 0 si non maîtrisé malgré la bâche.')
+      ]},
+      {name:'Vaccination', items:[
+        A('cartes_vac','Cartes de vaccination',3,[
+          'Remplissage correct des cartes (conforme à la grille qualité)',
+          'Enregistrement des cartes sélectionnées dans le registre de vaccination'],
+          'Cas validé si les deux items sont corrects (centres intégrés).'),
+        B('calendrier','Calendrier vaccinal',5,'Bonne connaissance du calendrier vaccinal.'),
+        B('vaccins','Types de vaccins et sites d’injection',5,'Bonne connaissance des types de vaccins et des sites d’injection.'),
+        C('froid','Chaîne du froid',[
+          {l:'Relevé quotidien des températures',w:1},{l:'Bon rangement des vaccins',w:1},
+          {l:'Tracé de la courbe',w:1},{l:'Reconnaissance des alarmes positive et négative',w:1}],
+          '1 point par rubrique.')
+      ]},
+      {name:'Remplissage des outils et supports de données', items:[
+        B('pointage','Fiche de pointage',2,'Remplissage correct.')
+      ]},
+      {name:'Discipline', items:DISCIPLINE_COMMUN}
+    ]
+  },
+
+  aide_soignant:{
+    label:'Aides-soignants',
+    sections:[
+      {name:'Hygiène et entretien', items:[
+        B('balayage','Balayage et faubérage des locaux',2,'Entretien avec le responsable du service. 2 points si fait au quotidien.'),
+        B('materiel','Nettoyage, stérilisation et rangement du matériel',1,'Cahier de nettoyage, stérilisation et rangement rempli au quotidien.'),
+        B('froid','Entretien de la chaîne de froid',1,'Cahier d’entretien à jour.')
+      ]},
+      {name:'Activités de soins et de tri', items:[
+        B('constantes','Prise des constantes / tri des malades',1,'À évaluer au quotidien.'),
+        B('tdr','Réalisation des TDR',1,'Le nom du malade est inscrit sur les cassettes de TDR.')
+      ]},
+      {name:'Outils et supports', items:[
+        B('pointage','Remplissage des cartes et registres de pointage',1,'Sondage de 5 pages à confronter avec les données du registre SMI.'),
+        B('cartes','Tri et rangement des cartes',1,'Rangement par mois de rendez-vous. NA s’il n’y a pas de bacs à échéancier.',{na:true})
+      ]},
+      {name:'Discipline', items:[
+        B('reunions','Participation aux réunions statutaires',1,'Vérifier les listes de présence : 100 % de participation. 0 si absence non justifiée.'),
+        B('accueil','Accueil des patients',5,'5 points si l’agent est réputé bien accueillir les clients, 0 si mauvais accueil signalé.',{yes:'Bon accueil',no:'Mauvais accueil'}),
+        B('assiduite','Assiduité et ponctualité',2,'Agent assidu et ponctuel.'),
+        B('demandes','Nombre de demandes d’explication reçues',2,'2 points si aucune demande, 0 dès qu’une demande a été reçue.',{yes:'Aucune',no:'Une ou plus'}),
+        B('tenue','Port de tenue réglementaire',2,'Agent réputé être toujours en tenue réglementaire.')
+      ]}
+    ]
+  },
+
+  commis:{
+    label:'Commis (pharmacie et caisse)',
+    sections:[
+      {name:'Pharmacie', items:[
+        B('proprete','Propreté de la pharmacie de détail',3,'3 points si bon état de propreté à toutes les évaluations, 0 si mauvais état.',{yes:'Propre',no:'Mauvais état'}),
+        C('remecom','Remplissage du ReMeCom',[
+          {l:'Remplissage sans erreur (vérifier le stock théorique à 5 dates au hasard)',w:2},
+          {l:'ReMeCom à jour',w:2},
+          {l:'ReMeCom arrêté à la fin de chaque mois',w:2},
+          {l:'Concordance bons de ravitaillement / ReMeCom (3 produits au hasard)',w:2}],
+          '2 points par critère respecté.'),
+        C('depouill','Fiches de dépouillement journalières',[
+          {l:'Toutes les sorties de médicaments et consommables sont inscrites',w:2},
+          {l:'Fiche de dépouillement à jour',w:2},
+          {l:'Fiche arrêtée et signée en fin de journée',w:2}],
+          '2 points par critère respecté.')
+      ]},
+      {name:'Caisse', items:[
+        C('quittance','Délivrance de quittance',[
+          {l:'Quittance délivrée systématiquement à chaque malade ayant honoré son ordonnance (vérifier 5 ordonnances)',w:2},
+          {l:'Quittance correctement remplie (nom et prénoms du client, signature et nom du commis, montant en chiffres et en lettres)',w:2}],
+          '2 points par critère respecté.'),
+        C('recettes','Cahiers de recettes journalières',[
+          {l:'Sans erreur (concordance entre total recettes de la fiche de dépouillement et du cahier de recette)',w:2},
+          {l:'À jour (tous les cahiers de recettes journalières sont disponibles)',w:2}],
+          '2 points par critère respecté.'),
+        C('transmission','Cahier de transmission de recettes',[
+          {l:'Cahier signé au quotidien par le commis et le chef de poste / comptable',w:2}],
+          '2 points si le critère est respecté.')
+      ]}
+    ]
+  }
+};
+
+/* ============ ÉTAT ============ */
+const $ = id => document.getElementById(id);
+let corps = '';
+let answers = {};   // id -> 'yes' | 'no' | 'na'  (bin)   |  [bool,...] (all/crit)
+
+function allItems(){ return GRIDS[corps].sections.flatMap(s=>s.items.map(it=>Object.assign({section:s.name},it))); }
+
+function itemResult(it){
+  const a = answers[it.id];
+  if (it.type==='bin'){
+    if (a==='na') return {s:0,m:0,done:true,na:true};
+    return {s: a==='yes'?it.max:0, m:it.max, done:a!==undefined};
+  }
+  const arr = a || it.crit.map(()=>false);
+  if (it.type==='all') return {s: arr.every(Boolean)?it.max:0, m:it.max, done:true};
+  const s = it.crit.reduce((t,c,i)=>t+(arr[i]?c.w:0),0);
+  return {s, m:it.max, done:true};
+}
+
+function totals(){
+  if(!corps) return {s:0,m:0,p:0,answered:0,count:0};
+  let s=0,m=0,answered=0; const items=allItems();
+  items.forEach(it=>{ const r=itemResult(it); s+=r.s; m+=r.m; if(r.done) answered++; });
+  return {s,m,p: m? Math.round(s/m*1000)/10 : 0, answered, count:items.length};
+}
+
+/* ============ RENDU ============ */
+const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderGrid(){
+  const host = $('grid'); host.innerHTML='';
+  $('intro').classList.toggle('hide', !!corps);
+  if(!corps){ updateBar(); return; }
+  let html='';
+  GRIDS[corps].sections.forEach(sec=>{
+    html += `<div class="section-title">${esc(sec.name)}</div>`;
+    sec.items.forEach(it=>{
+      html += `<div class="item" id="it_${it.id}"><span class="pts">/ ${it.max}</span><div class="lbl">${esc(it.label)}</div>`;
+      if(it.hint) html += `<div class="hint">${esc(it.hint)}</div>`;
+      if(it.type==='bin'){
+        html += `<div class="opts" data-id="${it.id}">
+          <button type="button" class="opt yes" data-v="yes">${esc(it.yes||'Oui')} · ${it.max}</button>
+          <button type="button" class="opt no" data-v="no">${esc(it.no||'Non')} · 0</button>
+          ${it.na?'<button type="button" class="opt na" data-v="na">Non applicable</button>':''}</div>`;
+      } else {
+        it.crit.forEach((c,i)=>{
+          const label = typeof c==='string'? c : c.l;
+          const w = typeof c==='string'? null : c.w;
+          html += `<label class="crit"><input type="checkbox" data-id="${it.id}" data-i="${i}"><span>${esc(label)}</span>${w!==null?`<em>+${w}</em>`:''}</label>`;
+        });
+      }
+      html += `</div>`;
+    });
+  });
+  host.innerHTML = html;
+  updateBar();
+}
+
+function updateBar(){
+  const t = totals();
+  const d = decision(t.p);
+  $('bPct').textContent = (t.m? String(t.p).replace('.',','):'0') + ' %';
+  $('bDec').textContent = t.m ? d.txt : '—';
+  $('bDec').className = 'dec ' + (t.m? d.cls : '');
+  $('bFill').style.width = Math.min(100,t.p)+'%';
+  $('bFill').style.background = t.m ? `var(--${d.cls==='mid'?'warn':d.cls})` : 'var(--muted)';
+  $('bInfo').textContent = t.count ? `Note ${t.s} / ${t.m} · ${t.answered} critère(s) sur ${t.count} renseigné(s)` : 'Choisissez un corps de métier';
+}
+
+/* ============ ÉVÉNEMENTS ============ */
+$('grid').addEventListener('click', e=>{
+  const b = e.target.closest('.opt'); if(!b) return;
+  const box = b.parentElement, id = box.dataset.id;
+  answers[id] = b.dataset.v;
+  box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
+  b.classList.add('sel');
+  $('it_'+id).classList.remove('missing');
+  updateBar();
+});
+$('grid').addEventListener('change', e=>{
+  const c = e.target; if(c.type!=='checkbox') return;
+  const id=c.dataset.id, it = allItems().find(x=>x.id===id);
+  const arr = answers[id] || it.crit.map(()=>false);
+  arr[+c.dataset.i] = c.checked; answers[id]=arr;
+  updateBar();
+});
+
+Object.entries(GRIDS).forEach(([k,g])=>{
+  const o=document.createElement('option'); o.value=k; o.textContent=g.label; $('corps').appendChild(o);
+});
+$('corps').addEventListener('change', ()=>{
+  const v = $('corps').value;
+  if(corps && Object.keys(answers).length && !confirm('Changer de corps de métier effacera les réponses déjà saisies. Continuer ?')){ $('corps').value=corps; return; }
+  corps=v; answers={};
+  if(v){
+    const q = $('qualif'); if(!q.value) q.value = ({maternite:'Sage-femme',dispensaire:'Infirmier',aide_soignant:'Aide-soignant',commis:'Commis'})[v];
+  }
+  renderGrid();
+});
+
+/* ============ MÉMOIRE LOCALE ============ */
+function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+$('date').value = new Date().toISOString().slice(0,10);
+const pref = lsGet('eval_pref',{});
+if(pref.centre) $('centre').value=pref.centre;
+if(pref.evaluateur) $('evaluateur').value=pref.evaluateur;
+
+/* ============ ENVOI + FILE D’ATTENTE ============ */
+function newId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+}
+
+async function postOne(payload){
+  if(!APPS_SCRIPT_URL) throw new Error('URL non configurée');
+  const r = await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||'Réponse du serveur invalide');
+  return true;
+}
+
+function queueGet(){ return lsGet('eval_queue',[]); }
+function queueShow(){
+  const q = queueGet();
+  $('queueBox').classList.toggle('hide', q.length===0);
+  $('queueTxt').textContent = q.length+' évaluation(s) en attente d’envoi sur ce téléphone.';
+}
+async function flush(){
+  let q = queueGet(); if(!q.length) return 0;
+  const rest=[];
+  for(const p of q){ try{ await postOne(p); }catch(e){ rest.push(p); } }
+  lsSet('eval_queue',rest); queueShow();
+  return q.length-rest.length;
+}
+$('retryBtn').addEventListener('click', async()=>{
+  $('retryBtn').disabled=true; const n=await flush(); $('retryBtn').disabled=false;
+  if(!n && queueGet().length) alert('L’envoi a échoué. Vérifiez la connexion internet puis réessayez.');
+});
+window.addEventListener('online', flush);
+$('cfgWarn').classList.toggle('hide', !!APPS_SCRIPT_URL);
+queueShow();
+if(navigator.onLine) flush();
+
+/* ============ ENREGISTREMENT ============ */
+$('submit').addEventListener('click', async()=>{
+  const need = [['corps','le corps de métier'],['centre','le centre de santé'],['nom','le nom de l’agent'],['qualif','la qualification'],['date','la date'],['evaluateur','le nom de l’évaluateur']];
+  for(const [id,txt] of need){
+    if(!$(id).value.trim()){ alert('Veuillez renseigner '+txt+'.'); $(id).focus(); $(id).scrollIntoView({block:'center'}); return; }
+  }
+  const items = allItems();
+  const miss = items.filter(it=>!itemResult(it).done);
+  document.querySelectorAll('.item.missing').forEach(n=>n.classList.remove('missing'));
+  if(miss.length){
+    miss.forEach(it=>$('it_'+it.id).classList.add('missing'));
+    $('it_'+miss[0].id).scrollIntoView({block:'center',behavior:'smooth'});
+    alert(miss.length+' critère(s) non renseigné(s) (encadrés en rouge).');
+    return;
+  }
+  const t = totals(), d = decision(t.p);
+  const payload = {
+    id:newId(), envoye_le:new Date().toISOString(),
+    date:$('date').value, periode:$('periode').value.trim(),
+    corps:corps, corps_libelle:GRIDS[corps].label,
+    centre:$('centre').value.trim(), nom:$('nom').value.trim(), qualification:$('qualif').value.trim(),
+    evaluateur:$('evaluateur').value.trim(),
+    code:($('code').value.trim() || lsGet('eval_code','')),
+    note:t.s, maximum:t.m, pourcentage:t.p, decision:d.code, decision_libelle:d.txt,
+    details: items.map(it=>{ const r=itemResult(it);
+      return {section:it.section, code:it.id, item:it.label, note:r.s, max:r.m, na:!!r.na}; })
+  };
+  lsSet('eval_pref',{centre:payload.centre, evaluateur:payload.evaluateur});
+  $('submit').disabled=true; $('submit').textContent='Envoi en cours…';
+  let sent=false, refuse=false;
+  try{ await postOne(payload); sent=true; if(payload.code) lsSet('eval_code',payload.code); }
+  catch(e){
+    if(e.message==='ACCES'){ refuse=true; }
+    else { const q=queueGet(); q.push(payload); lsSet('eval_queue',q); queueShow(); }
+  }
+  $('submit').disabled=false; $('submit').textContent='Enregistrer l’évaluation';
+  if(refuse){
+    $('codeWrap').classList.remove('hide'); $('code').focus(); $('code').scrollIntoView({block:'center'});
+    alert('Un code d’accès est nécessaire (ou le code saisi est incorrect). Demandez-le à l’administration, saisissez-le puis enregistrez de nouveau.');
+    return;
+  }
+
+  $('rPct').textContent = String(t.p).replace('.',',')+' %';
+  $('rPct').className='pct '+d.cls;
+  $('rDec').textContent = d.txt; $('rDec').className='dec '+d.cls;
+  $('rSync').textContent = sent ? 'Données envoyées au serveur.' : 'Pas de connexion ou serveur non configuré : l’évaluation est gardée sur ce téléphone et sera envoyée dès que possible.';
+  $('formWrap').classList.add('hide'); $('bar').classList.add('hide'); $('done').classList.remove('hide');
+  window.scrollTo(0,0);
+});
+
+$('again').addEventListener('click', ()=>{
+  answers={}; $('nom').value=''; $('periode').value=''; $('corps').value=''; corps=''; $('qualif').value='';
+  $('date').value=new Date().toISOString().slice(0,10);
+  renderGrid();
+  $('done').classList.add('hide'); $('formWrap').classList.remove('hide'); $('bar').classList.remove('hide');
+  window.scrollTo(0,0);
+});
+
+renderGrid();
+</script>
+</body>
+</html>
