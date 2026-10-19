@@ -79,7 +79,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
     <h1>Évaluation de la performance individuelle</h1>
     <p>Zone sanitaire Djidja-Abomey-Agbangnizoun · DDS Zou</p>
   </div>
-  <button class="admbtn" id="admOpen" type="button">Administrateur</button>
+  <button class="admbtn" data-adm type="button">🔒 Administrateur</button>
 </header>
 
 <div id="admModal" class="modal hide">
@@ -94,6 +94,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 </div>
 
 <main>
+  <button class="ghost" data-adm type="button" style="margin:0 0 4px;border-style:dashed">🔒 Accès administrateur (consulter les données et statistiques)</button>
   <div id="cfgWarn" class="notice warn hide">L’adresse du serveur Google Sheets n’est pas encore renseignée dans le fichier (constante <b>APPS_SCRIPT_URL</b>). Les évaluations resteront en attente sur ce téléphone.</div>
   <div id="queueBox" class="notice warn hide"><span id="queueTxt"></span><br><button id="retryBtn" type="button">Renvoyer maintenant</button></div>
 
@@ -534,7 +535,7 @@ async function admLogin(){
   }
   $('admGo').disabled=false; $('admGo').textContent='Se connecter';
 }
-$('admOpen').addEventListener('click',admOpen);
+document.querySelectorAll('[data-adm]').forEach(b=>b.addEventListener('click',admOpen));
 $('admCancel').addEventListener('click',admClose);
 $('admGo').addEventListener('click',admLogin);
 $('admPw').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
