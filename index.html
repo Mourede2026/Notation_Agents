@@ -143,8 +143,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 
   <div id="done" class="card result hide">
     <h2>Évaluation enregistrée</h2>
-    <div class="pct" id="rPct"></div>
-    <div class="dec" id="rDec"></div>
+    <p style="font-size:2.4rem;margin:6px 0">✅</p>
+    <p style="margin:0 0 6px">Merci. Les résultats sont transmis à l’administration.</p>
     <p id="rSync" class="small"></p>
     <button class="go" id="again" type="button">Nouvelle évaluation</button>
   </div>
@@ -152,9 +152,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 
 <div class="bar" id="bar">
   <div class="bar-in">
-    <div class="bar-top"><span class="pct" id="bPct">0 %</span><span class="dec" id="bDec">—</span></div>
+    <div class="bar-top"><span class="dec" id="bDec">Progression</span><span class="small" id="bInfo">0 / 0</span></div>
     <div class="track"><div class="fill" id="bFill"></div></div>
-    <div class="small" id="bInfo">Note 0 / 0 · 0 critère(s) sur 0 renseigné(s)</div>
     <button class="go" id="submit" type="button">Enregistrer l’évaluation</button>
   </div>
 </div>
@@ -164,15 +163,6 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 // Collez ici l’URL du déploiement Google Apps Script (se termine par /exec)
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhrW3aFcugrcpPNknq0Xwyk1SLryu1cnuDlVKbZDCpaUplu8Jxj1eg5WbPfrp9E467JA/exec';
 
-// Seuils de décision (en %)
-const SEUIL_TRES_BON = 80;   // 80 % et plus
-const SEUIL_RESERVE  = 60;   // 60 % à moins de 80 %
-
-function decision(p){
-  if (p >= SEUIL_TRES_BON) return {code:'TRES_BON', txt:'Très bon – reconduire', cls:'good'};
-  if (p >= SEUIL_RESERVE)  return {code:'RESERVE',  txt:'Reconduire avec réserve – signature d’un contrat de 3 mois', cls:'mid'};
-  return {code:'BLAME', txt:'Blâme – contrat non renouvelé', cls:'bad'};
-}
 
 /* ============ CALENDRIER VACCINAL (aide visuelle pour l’évaluateur) ============ */
 const CALENDRIER_PEV = [
@@ -408,13 +398,9 @@ function renderGrid(){
 
 function updateBar(){
   const t = totals();
-  const d = decision(t.p);
-  $('bPct').textContent = (t.m? String(t.p).replace('.',','):'0') + ' %';
-  $('bDec').textContent = t.m ? d.txt : '—';
-  $('bDec').className = 'dec ' + (t.m? d.cls : '');
-  $('bFill').style.width = Math.min(100,t.p)+'%';
-  $('bFill').style.background = t.m ? `var(--${d.cls==='mid'?'warn':d.cls})` : 'var(--muted)';
-  $('bInfo').textContent = t.count ? `Note ${t.s} / ${t.m} · ${t.answered} critère(s) sur ${t.count} renseigné(s)` + (t.na?` · ${t.na} non applicable(s) exclu(s)`:'') : 'Choisissez un corps de métier';
+  $('bFill').style.width = (t.count? Math.round(t.answered/t.count*100) : 0)+'%';
+  $('bFill').style.background = 'var(--brand)';
+  $('bInfo').textContent = t.count ? `${t.answered} / ${t.count} critère(s) renseigné(s)` : 'Choisissez un corps de métier';
 }
 
 /* ============ ÉVÉNEMENTS ============ */
@@ -517,7 +503,7 @@ $('submit').addEventListener('click', async()=>{
     alert(miss.length+' critère(s) non renseigné(s) (encadrés en rouge).');
     return;
   }
-  const t = totals(), d = decision(t.p);
+  const t = totals();
   if(!t.m){ alert('Tous les critères sont « non applicable » : au moins un critère doit être évalué.'); return; }
   const payload = {
     id:newId(), envoye_le:new Date().toISOString(),
@@ -526,7 +512,6 @@ $('submit').addEventListener('click', async()=>{
     centre:$('centre').value.trim(), nom:$('nom').value.trim(), qualification:$('qualif').value.trim(),
     evaluateur:$('evaluateur').value.trim(),
     code:($('code').value.trim() || lsGet('eval_code','')),
-    note:t.s, maximum:t.m, pourcentage:t.p, decision:d.code, decision_libelle:d.txt,
     details: items.map(it=>{ const r=itemResult(it);
       return {section:it.section, code:it.id, item:it.label, note:r.s, max:r.m, na:!!r.na}; })
   };
@@ -545,9 +530,6 @@ $('submit').addEventListener('click', async()=>{
     return;
   }
 
-  $('rPct').textContent = String(t.p).replace('.',',')+' %';
-  $('rPct').className='pct '+d.cls;
-  $('rDec').textContent = d.txt; $('rDec').className='dec '+d.cls;
   $('rSync').textContent = sent ? 'Données envoyées au serveur.' : 'Pas de connexion ou serveur non configuré : l’évaluation est gardée sur ce téléphone et sera envoyée dès que possible.';
   $('formWrap').classList.add('hide'); $('bar').classList.add('hide'); $('done').classList.remove('hide');
   window.scrollTo(0,0);

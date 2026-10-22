@@ -65,9 +65,14 @@ function doPost(e) {
       if (ids.indexOf(d.id) !== -1) return json_({ ok: true, doublon: true });
     }
 
-    const pct = Number(d.pourcentage) || 0;
+    // Le score est calculé ICI (côté serveur) : l'évaluateur ne le voit jamais.
+    // Les critères « non applicable » ont un maximum de 0 et sont donc exclus du calcul.
+    let note = 0, maximum = 0;
+    (d.details || []).forEach(x => { note += Number(x.note) || 0; maximum += Number(x.max) || 0; });
+    if (!maximum) return json_({ ok: false, error: 'Aucun critère applicable à évaluer.' });
+    const pct = note / maximum * 100;
     shE.appendRow([new Date(), d.id, d.date, d.periode, d.corps_libelle, d.centre, d.nom,
-      d.qualification, d.evaluateur, Number(d.note), Number(d.maximum), pct / 100, decision_(pct)]);
+      d.qualification, d.evaluateur, note, maximum, pct / 100, decision_(pct)]);
     shE.getRange(shE.getLastRow(), 12).setNumberFormat('0.0%');
 
     const lignes = (d.details || []).map(x => [d.id, d.date, d.corps_libelle, d.centre, d.nom,
