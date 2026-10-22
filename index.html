@@ -47,6 +47,16 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 .opt{flex:1 1 90px;min-height:44px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-weight:600;cursor:pointer;padding:8px 10px}
 .opt.sel.yes{background:var(--good);border-color:var(--good);color:var(--brand-ink)}
 .opt.sel.no{background:var(--bad);border-color:var(--bad);color:#fff}
+.ref{margin:6px 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.ref summary{cursor:pointer;padding:10px 12px;font-weight:600;font-size:.88rem;color:var(--brand);min-height:44px;display:flex;align-items:center}
+.ref .tw{overflow-x:auto;padding:0 8px 8px}
+.ref table{border-collapse:collapse;width:100%;font-size:.8rem}
+.ref th,.ref td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:top}
+.ref th{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.ref td:first-child{font-weight:700;white-space:nowrap}
+.item.isna{opacity:.65}
+.item.isna .pts::after{content:' · exclu'}
+.crit.nacrit{border-top:1px solid var(--line);margin-top:4px}
 .opt.sel.na{background:var(--muted);border-color:var(--muted);color:var(--bg)}
 .crit{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px dashed var(--line)}
 .crit:first-of-type{border-top:0}
@@ -164,6 +174,28 @@ function decision(p){
   return {code:'BLAME', txt:'Blâme – contrat non renouvelé', cls:'bad'};
 }
 
+/* ============ CALENDRIER VACCINAL (aide visuelle pour l’évaluateur) ============ */
+const CALENDRIER_PEV = [
+  ['DN HepB','Dans les 24 premières heures de vie','IM face antéro-externe au 1/3 moyen de la cuisse gauche'],
+  ['BCG','À la naissance','Intradermique face externe 1/3 supérieur avant-bras gauche'],
+  ['VPO','Naissance, 6 semaines, 10 semaines, 14 semaines','Orale / Bouche'],
+  ['VPI','14 semaines','IM face antéro-externe cuisse droite'],
+  ['DTC-Hep B-Hib','6 semaines, 10 semaines, 14 semaines','Deltoïde du bras gauche, intramusculaire'],
+  ['Rota','6 semaines, 10 semaines, 14 semaines','Orale / Bouche'],
+  ['PCV-13','6 semaines, 10 semaines, 14 semaines','Intramusculaire cuisse gauche'],
+  ['RR1','9 mois','Sous-cutané deltoïde bras droit'],
+  ['VAA','9 mois','Sous-cutané cuisse droite'],
+  ['Men A','9 mois','IM profonde dans le deltoïde du bras gauche'],
+  ['Vaccin contre le paludisme','6 mois, 7 mois, 9 mois et 18 mois','Enfant de moins de 12 mois : IM profonde cuisse gauche. Enfant de plus de 12 mois : IM profonde deltoïde bras gauche'],
+  ['RR2','18 mois','Sous-cutané deltoïde bras droit']
+];
+function calendrierHtml(){
+  return `<details class="ref"><summary>📋 Voir le calendrier vaccinal du PEV (aide pour l’évaluateur)</summary><div class="tw"><table>
+    <thead><tr><th>Vaccin</th><th>Âge d’administration</th><th>Voie et site</th></tr></thead><tbody>`+
+    CALENDRIER_PEV.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')+
+    `</tbody></table></div></details>`;
+}
+
 /* ============ DÉFINITION DES GRILLES ============ */
 // B = tout ou rien (max points ou 0), option NA
 // A = « toutes les conditions » : points complets seulement si toutes les cases sont cochées
@@ -237,8 +269,8 @@ const GRIDS = {
           'Remplissage correct des cartes (conforme à la grille qualité)',
           'Enregistrement des cartes sélectionnées dans le registre de vaccination'],
           'Cas validé si les deux items sont corrects (centres intégrés).'),
-        B('calendrier','Calendrier vaccinal',5,'Bonne connaissance du calendrier vaccinal.'),
-        B('vaccins','Types de vaccins et sites d’injection',5,'Bonne connaissance des types de vaccins et des sites d’injection.'),
+        B('calendrier','Calendrier vaccinal',5,'Bonne connaissance du calendrier vaccinal : comparer les réponses de l’agent au calendrier ci-dessous.',{ref:true}),
+        B('vaccins','Types de vaccins et sites d’injection',5,'Bonne connaissance des types de vaccins et des sites d’injection : comparer les réponses de l’agent au calendrier ci-dessous.',{ref:true}),
         C('froid','Chaîne du froid',[
           {l:'Relevé quotidien des températures',w:1},{l:'Bon rangement des vaccins',w:1},
           {l:'Tracé de la courbe',w:1},{l:'Reconnaissance des alarmes positive et négative',w:1}],
@@ -260,12 +292,12 @@ const GRIDS = {
         B('froid','Entretien de la chaîne de froid',1,'Cahier d’entretien à jour.')
       ]},
       {name:'Activités de soins et de tri', items:[
-        B('constantes','Prise des constantes / tri des malades',1,'À évaluer au quotidien.'),
-        B('tdr','Réalisation des TDR',1,'Le nom du malade est inscrit sur les cassettes de TDR.')
+        B('constantes','Prise des constantes / tri des malades',1,'À évaluer au quotidien. Vérifier la connaissance du tri : jetons numérotés disponibles, bureau du chef de poste et autres salles de consultation, priorité à l’urgence reçue.'),
+        B('tdr','Réalisation des TDR',1,'Vérifier l’inscription sur les cassettes de TDR : date, heure, initiales de l’agent ayant testé le patient.')
       ]},
       {name:'Outils et supports', items:[
         B('pointage','Remplissage des cartes et registres de pointage',1,'Sondage de 5 pages à confronter avec les données du registre SMI.'),
-        B('cartes','Tri et rangement des cartes',1,'Rangement par mois de rendez-vous. NA s’il n’y a pas de bacs à échéancier.',{na:true})
+        B('cartes','Tri et rangement des cartes',1,'Rangement par mois de rendez-vous. NA s’il n’y a pas de bacs à échéancier.')
       ]},
       {name:'Discipline', items:[
         B('reunions','Participation aux réunions statutaires',1,'Vérifier les listes de présence : 100 % de participation. 0 si absence non justifiée.'),
@@ -306,6 +338,9 @@ const GRIDS = {
         C('transmission','Cahier de transmission de recettes',[
           {l:'Cahier signé au quotidien par le commis et le chef de poste / comptable',w:2}],
           '2 points si le critère est respecté.')
+      ]},
+      {name:'Gestion du stock', items:[
+        B('fiche_stock','Mise à jour des fiches de stock',2,'Fiche de stock au magasin renseignée à chaque mouvement. (Points non précisés dans la grille : 2 points retenus.)')
       ]}
     ]
   }
@@ -320,8 +355,8 @@ function allItems(){ return GRIDS[corps].sections.flatMap(s=>s.items.map(it=>Obj
 
 function itemResult(it){
   const a = answers[it.id];
+  if (a==='na') return {s:0,m:0,done:true,na:true};   // non applicable : exclu du score ET du maximum
   if (it.type==='bin'){
-    if (a==='na') return {s:0,m:0,done:true,na:true};
     return {s: a==='yes'?it.max:0, m:it.max, done:a!==undefined};
   }
   const arr = a || it.crit.map(()=>false);
@@ -331,10 +366,10 @@ function itemResult(it){
 }
 
 function totals(){
-  if(!corps) return {s:0,m:0,p:0,answered:0,count:0};
-  let s=0,m=0,answered=0; const items=allItems();
-  items.forEach(it=>{ const r=itemResult(it); s+=r.s; m+=r.m; if(r.done) answered++; });
-  return {s,m,p: m? Math.round(s/m*1000)/10 : 0, answered, count:items.length};
+  if(!corps) return {s:0,m:0,p:0,answered:0,count:0,na:0};
+  let s=0,m=0,answered=0,na=0; const items=allItems();
+  items.forEach(it=>{ const r=itemResult(it); s+=r.s; m+=r.m; if(r.done) answered++; if(r.na) na++; });
+  return {s,m,p: m? Math.round(s/m*1000)/10 : 0, answered, count:items.length, na};
 }
 
 /* ============ RENDU ============ */
@@ -350,17 +385,19 @@ function renderGrid(){
     sec.items.forEach(it=>{
       html += `<div class="item" id="it_${it.id}"><span class="pts">/ ${it.max}</span><div class="lbl">${esc(it.label)}</div>`;
       if(it.hint) html += `<div class="hint">${esc(it.hint)}</div>`;
+      if(it.ref) html += calendrierHtml();
       if(it.type==='bin'){
         html += `<div class="opts" data-id="${it.id}">
           <button type="button" class="opt yes" data-v="yes">${esc(it.yes||'Oui')} · ${it.max}</button>
           <button type="button" class="opt no" data-v="no">${esc(it.no||'Non')} · 0</button>
-          ${it.na?'<button type="button" class="opt na" data-v="na">Non applicable</button>':''}</div>`;
+          <button type="button" class="opt na" data-v="na">Non applicable</button></div>`;
       } else {
         it.crit.forEach((c,i)=>{
           const label = typeof c==='string'? c : c.l;
           const w = typeof c==='string'? null : c.w;
           html += `<label class="crit"><input type="checkbox" data-id="${it.id}" data-i="${i}"><span>${esc(label)}</span>${w!==null?`<em>+${w}</em>`:''}</label>`;
         });
+        html += `<label class="crit nacrit"><input type="checkbox" data-na="${it.id}"><span>Non applicable (critère exclu du calcul)</span></label>`;
       }
       html += `</div>`;
     });
@@ -377,7 +414,7 @@ function updateBar(){
   $('bDec').className = 'dec ' + (t.m? d.cls : '');
   $('bFill').style.width = Math.min(100,t.p)+'%';
   $('bFill').style.background = t.m ? `var(--${d.cls==='mid'?'warn':d.cls})` : 'var(--muted)';
-  $('bInfo').textContent = t.count ? `Note ${t.s} / ${t.m} · ${t.answered} critère(s) sur ${t.count} renseigné(s)` : 'Choisissez un corps de métier';
+  $('bInfo').textContent = t.count ? `Note ${t.s} / ${t.m} · ${t.answered} critère(s) sur ${t.count} renseigné(s)` + (t.na?` · ${t.na} non applicable(s) exclu(s)`:'') : 'Choisissez un corps de métier';
 }
 
 /* ============ ÉVÉNEMENTS ============ */
@@ -388,11 +425,20 @@ $('grid').addEventListener('click', e=>{
   box.querySelectorAll('.opt').forEach(x=>x.classList.remove('sel'));
   b.classList.add('sel');
   $('it_'+id).classList.remove('missing');
+  $('it_'+id).classList.toggle('isna', b.dataset.v==='na');
   updateBar();
 });
 $('grid').addEventListener('change', e=>{
   const c = e.target; if(c.type!=='checkbox') return;
+  if(c.dataset.na){
+    const nid=c.dataset.na, nit=allItems().find(x=>x.id===nid), box=$('it_'+nid);
+    if(c.checked){ answers[nid]='na'; box.querySelectorAll('input[data-i]').forEach(x=>{x.checked=false;x.disabled=true;}); }
+    else { answers[nid]=nit.crit.map(()=>false); box.querySelectorAll('input[data-i]').forEach(x=>{x.disabled=false;}); }
+    box.classList.toggle('isna',c.checked); box.classList.remove('missing');
+    updateBar(); return;
+  }
   const id=c.dataset.id, it = allItems().find(x=>x.id===id);
+  if(answers[id]==='na') return;
   const arr = answers[id] || it.crit.map(()=>false);
   arr[+c.dataset.i] = c.checked; answers[id]=arr;
   updateBar();
@@ -472,6 +518,7 @@ $('submit').addEventListener('click', async()=>{
     return;
   }
   const t = totals(), d = decision(t.p);
+  if(!t.m){ alert('Tous les critères sont « non applicable » : au moins un critère doit être évalué.'); return; }
   const payload = {
     id:newId(), envoye_le:new Date().toISOString(),
     date:$('date').value, periode:$('periode').value.trim(),
