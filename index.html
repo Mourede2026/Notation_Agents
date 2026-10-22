@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f7a5a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Évaluation de la performance du personnel – ZS DAA</title>
 <style>
 :root{
@@ -54,6 +58,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 .ref th,.ref td{border-bottom:1px solid var(--line);padding:6px 6px;text-align:left;vertical-align:top}
 .ref th{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .ref td:first-child{font-weight:700;white-space:nowrap}
+.net{display:inline-block;margin-top:4px;font-size:.75rem;font-weight:600;border-radius:99px;padding:2px 10px;background:#ffffff26}
+.net.off{background:#b7791f;color:#fff}
 .item.isna{opacity:.65}
 .item.isna .pts::after{content:' · exclu'}
 .crit.nacrit{border-top:1px solid var(--line);margin-top:4px}
@@ -88,6 +94,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
   <div>
     <h1>Évaluation de la performance individuelle</h1>
     <p>Zone sanitaire Djidja-Abomey-Agbangnizoun · DDS Zou</p>
+    <span class="net" id="net">● En ligne</span>
   </div>
   <button class="admbtn" data-adm type="button">🔒 Administrateur</button>
 </header>
@@ -106,6 +113,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
 <main>
   <button class="ghost" data-adm type="button" style="margin:0 0 4px;border-style:dashed">🔒 Accès administrateur (consulter les données et statistiques)</button>
   <div id="cfgWarn" class="notice warn hide">L’adresse du serveur Google Sheets n’est pas encore renseignée dans le fichier (constante <b>APPS_SCRIPT_URL</b>). Les évaluations resteront en attente sur ce téléphone.</div>
+  <div id="draftBox" class="notice ok hide">Brouillon restauré : l’évaluation commencée a été retrouvée sur ce téléphone.<br><button id="draftDrop" type="button">Abandonner ce brouillon</button></div>
+  <div id="okBox" class="notice ok hide"></div>
   <div id="queueBox" class="notice warn hide"><span id="queueTxt"></span><br><button id="retryBtn" type="button">Renvoyer maintenant</button></div>
 
   <div id="formWrap">
@@ -144,7 +153,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--focus);bor
   <div id="done" class="card result hide">
     <h2>Évaluation enregistrée</h2>
     <p style="font-size:2.4rem;margin:6px 0">✅</p>
-    <p style="margin:0 0 6px">Merci. Les résultats sont transmis à l’administration.</p>
+    <p id="rMsg" style="margin:0 0 6px"></p>
     <p id="rSync" class="small"></p>
     <button class="go" id="again" type="button">Nouvelle évaluation</button>
   </div>
@@ -460,33 +469,95 @@ function newId(){
 
 async function postOne(payload){
   if(!APPS_SCRIPT_URL) throw new Error('URL non configurée');
-  const r = await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-  const j = await r.json();
-  if(!j.ok) throw new Error(j.error||'Réponse du serveur invalide');
-  return true;
+  const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 20000);
+  try{
+    const r = await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),signal:ctl.signal});
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error||'Réponse du serveur invalide');
+    return true;
+  } finally { clearTimeout(to); }
 }
 
 function queueGet(){ return lsGet('eval_queue',[]); }
 function queueShow(){
   const q = queueGet();
   $('queueBox').classList.toggle('hide', q.length===0);
-  $('queueTxt').textContent = q.length+' évaluation(s) en attente d’envoi sur ce téléphone.';
+  $('queueTxt').textContent = q.length+' évaluation(s) enregistrée(s) sur ce téléphone, en attente d’envoi.';
 }
+let okTimer=null;
+function toastOk(msg){ $('okBox').textContent=msg; $('okBox').classList.remove('hide'); clearTimeout(okTimer); okTimer=setTimeout(()=>$('okBox').classList.add('hide'),6000); }
+
+let flushing=false;
 async function flush(){
-  let q = queueGet(); if(!q.length) return 0;
-  const rest=[];
-  for(const p of q){ try{ await postOne(p); }catch(e){ rest.push(p); } }
-  lsSet('eval_queue',rest); queueShow();
-  return q.length-rest.length;
+  if(flushing) return 0;
+  const q = queueGet(); if(!q.length) return 0;
+  flushing=true; const sentIds=new Set();
+  for(const p of q){ try{ await postOne(p); sentIds.add(p.id); }catch(e){ if(!navigator.onLine) break; } }
+  // relire la file : des évaluations ont pu être ajoutées pendant l’envoi
+  lsSet('eval_queue', queueGet().filter(p=>!sentIds.has(p.id)));
+  flushing=false; queueShow();
+  if(sentIds.size) toastOk(sentIds.size+' évaluation(s) envoyée(s) au serveur.');
+  return sentIds.size;
 }
 $('retryBtn').addEventListener('click', async()=>{
   $('retryBtn').disabled=true; const n=await flush(); $('retryBtn').disabled=false;
   if(!n && queueGet().length) alert('L’envoi a échoué. Vérifiez la connexion internet puis réessayez.');
 });
-window.addEventListener('online', flush);
+
+/* indicateur de connexion + envoi automatique au retour du réseau */
+function netShow(){
+  const on = navigator.onLine;
+  $('net').textContent = on ? '● En ligne' : '● Hors connexion – les évaluations restent sur ce téléphone';
+  $('net').classList.toggle('off',!on);
+}
+window.addEventListener('online', ()=>{ netShow(); flush(); });
+window.addEventListener('offline', netShow);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && navigator.onLine) flush(); });
+setInterval(()=>{ if(navigator.onLine && queueGet().length) flush(); }, 60000);
+netShow();
 $('cfgWarn').classList.toggle('hide', !!APPS_SCRIPT_URL);
 queueShow();
 if(navigator.onLine) flush();
+
+/* ============ BROUILLON AUTOMATIQUE ============ */
+const DRAFT_FIELDS=['centre','nom','qualif','date','periode','evaluateur'];
+let draftTimer=null;
+function saveDraft(){
+  if(!$('formWrap') || $('formWrap').classList.contains('hide')) return;
+  if(!corps && !$('nom').value.trim()) { return; }
+  const f={}; DRAFT_FIELDS.forEach(k=>f[k]=$(k).value);
+  lsSet('eval_draft',{corps,f,answers,ts:Date.now()});
+}
+function saveDraftSoon(){ clearTimeout(draftTimer); draftTimer=setTimeout(saveDraft,400); }
+function clearDraft(){ clearTimeout(draftTimer); try{ localStorage.removeItem('eval_draft'); }catch(e){} }
+['input','change','click'].forEach(ev=>$('formWrap').addEventListener(ev,saveDraftSoon));
+
+function applyAnswers(){
+  allItems().forEach(it=>{
+    const a=answers[it.id]; if(a===undefined) return;
+    const box=$('it_'+it.id); if(!box) return;
+    if(it.type==='bin'){
+      const b=box.querySelector(`.opt[data-v="${a}"]`); if(b) b.classList.add('sel');
+      box.classList.toggle('isna',a==='na');
+    } else if(a==='na'){
+      const n=box.querySelector('input[data-na]'); if(n) n.checked=true;
+      box.querySelectorAll('input[data-i]').forEach(x=>{x.checked=false;x.disabled=true;});
+      box.classList.add('isna');
+    } else {
+      box.querySelectorAll('input[data-i]').forEach(x=>{ x.checked=!!a[+x.dataset.i]; });
+    }
+  });
+  updateBar();
+}
+function restoreDraft(){
+  const d=lsGet('eval_draft',null);
+  if(!d || !d.corps || !GRIDS[d.corps]) return;
+  DRAFT_FIELDS.forEach(k=>{ if(d.f && d.f[k]!==undefined) $(k).value=d.f[k]; });
+  corps=d.corps; $('corps').value=corps; answers=d.answers||{};
+  renderGrid(); applyAnswers();
+  $('draftBox').classList.remove('hide');
+}
+$('draftDrop').addEventListener('click',()=>{ if(confirm('Abandonner ce brouillon et repartir de zéro ?')){ clearDraft(); location.reload(); } });
 
 /* ============ ENREGISTREMENT ============ */
 $('submit').addEventListener('click', async()=>{
@@ -530,7 +601,9 @@ $('submit').addEventListener('click', async()=>{
     return;
   }
 
-  $('rSync').textContent = sent ? 'Données envoyées au serveur.' : 'Pas de connexion ou serveur non configuré : l’évaluation est gardée sur ce téléphone et sera envoyée dès que possible.';
+  $('rMsg').textContent = sent ? 'Merci. Les résultats sont transmis à l’administration.' : 'Merci. L’évaluation est enregistrée sur ce téléphone.';
+  $('rSync').textContent = sent ? '' : 'Pas de connexion (ou serveur injoignable) : elle sera envoyée automatiquement dès que la connexion reviendra, tant que vous gardez ce téléphone et ce navigateur.';
+  clearDraft();
   $('formWrap').classList.add('hide'); $('bar').classList.add('hide'); $('done').classList.remove('hide');
   window.scrollTo(0,0);
 });
@@ -571,6 +644,12 @@ $('admPw').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
 $('admModal').addEventListener('click',e=>{ if(e.target===$('admModal')) admClose(); });
 
 renderGrid();
+restoreDraft();
+
+/* ============ MODE HORS CONNEXION (service worker) ============ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
 </script>
 </body>
 </html>
