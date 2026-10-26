@@ -10,6 +10,9 @@ Les données sont envoyées à un Google Sheets via un script Google Apps Script
 ## Administration
 Sur `admin.html`, chaque ligne de la liste a un bouton « Ouvrir / Modifier » : l’administrateur corrige l’identité de l’agent et les notes des critères, puis enregistre. La performance est recalculée et le Google Sheets est mis à jour. Un bouton « Supprimer » retire une évaluation ; une copie est gardée dans l’onglet « Corbeille » du Sheets.
 
+## Rapport PDF
+Le bouton « 📄 Rapport PDF » de `admin.html` télécharge un rapport analytique (synthèse, lecture analytique, répartition, tableaux par type d’agent, formation sanitaire et agent, critères faibles) qui respecte les filtres affichés à l’écran. Il demande internet (bibliothèque jsPDF chargée depuis cdnjs).
+
 ## Fonctionnement hors connexion
 1. Ouvrir le lien **une première fois avec internet** : le formulaire se copie dans le téléphone.
 2. Ensuite il s’ouvre sans connexion. Une évaluation commencée est sauvegardée automatiquement en brouillon.

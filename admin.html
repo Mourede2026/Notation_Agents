@@ -74,7 +74,7 @@ tr.click:hover{background:var(--chip)}
 <body>
 <header>
   <div><h1>Administration · Évaluation de la performance</h1><small>ZS Djidja-Abomey-Agbangnizoun</small></div>
-  <div id="hdrBtns" class="hide"><a href="index.html" style="color:inherit;margin-right:8px">Formulaire</a> <button id="refresh" type="button">Actualiser</button> <button id="logout" type="button">Se déconnecter</button></div>
+  <div id="hdrBtns" class="hide"><a href="index.html" style="color:inherit;margin-right:8px">Formulaire</a> <button data-pdf type="button">📄 Rapport PDF</button> <button id="refresh" type="button">Actualiser</button> <button id="logout" type="button">Se déconnecter</button></div>
 </header>
 
 <main>
@@ -97,6 +97,7 @@ tr.click:hover{background:var(--chip)}
           <select id="fDec"><option value="">Toutes</option><option value="TRES_BON">Très bon (≥ 80 %)</option><option value="RESERVE">Avec réserve (60–80 %)</option><option value="BLAME">Blâme (&lt; 60 %)</option></select></div>
         <div><label for="fSearch">Recherche (nom, évaluateur)</label><input id="fSearch" placeholder="Rechercher…"></div>
       </div>
+      <button data-pdf class="pri" type="button" style="margin-top:12px;width:100%">📄 Télécharger le rapport analytique PDF (selon les filtres ci-dessus)</button>
     </div>
 
     <div class="kpis" id="kpis"></div>
@@ -129,6 +130,8 @@ tr.click:hover{background:var(--chip)}
 
 <div id="modal" class="modal hide"><div class="box" id="modalBox"></div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="grilles.js"></script>
 <script>
 /* ===== CONFIGURATION : même URL que le formulaire ===== */
@@ -447,6 +450,188 @@ async function saveEdit(){
   }
 }
 $('modal').addEventListener('click',e=>{ if(e.target===$('modal')) closeModal(); });
+
+
+/* ===== Rapport analytique PDF ===== */
+const pdfTxt = s => String(s==null?'':s).replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/×/g,'/').replace(/[▲▼]/g,'').replace(/→/g,'->');
+
+function construirePDF(list){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm',format:'a4'});
+  const W=210, M=14, BAS=282;
+  const VERT=[31,122,90], GRIS=[93,107,102];
+  const RGB={good:[31,122,90],mid:[183,121,31],bad:[179,55,47]};
+  const today = new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  let y=0;
+  const s = stats(list);
+  const nb = (arr,k)=>new Set(arr.map(e=>e[k])).size;
+
+  // ---------- en-tête
+  doc.setFillColor(...VERT); doc.rect(0,0,W,34,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('Rapport analytique', M, 14);
+  doc.setFontSize(12); doc.text('Évaluation de la performance individuelle du personnel', M, 21);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Zone sanitaire Djidja-Abomey-Agbangnizoun · Édité le '+today, M, 28);
+  y=42; doc.setTextColor(30,36,33);
+
+  // filtres appliqués
+  const fl=[]; if($('fCorps').value) fl.push('Type d’agent : '+$('fCorps').value);
+  if($('fCentre').value) fl.push('Formation sanitaire : '+$('fCentre').value);
+  if($('fPeriode').value) fl.push('Période : '+$('fPeriode').value);
+  if($('fDec').value) fl.push('Décision : '+({TRES_BON:'Très bon',RESERVE:'Avec réserve',BLAME:'Blâme'})[$('fDec').value]);
+  if($('fSearch').value.trim()) fl.push('Recherche : '+$('fSearch').value.trim());
+  doc.setFontSize(9); doc.setTextColor(...GRIS);
+  doc.text(pdfTxt('Périmètre : '+(fl.length?fl.join(' | '):'toutes les évaluations (aucun filtre)')), M, y, {maxWidth:W-2*M});
+  y+=10; doc.setTextColor(30,36,33);
+
+  const titre = t=>{ if(y>BAS-30){ doc.addPage(); y=18; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...VERT); doc.text(pdfTxt(t),M,y);
+    doc.setDrawColor(...VERT); doc.setLineWidth(.4); doc.line(M,y+1.8,W-M,y+1.8);
+    y+=8; doc.setTextColor(30,36,33); doc.setFont('helvetica','normal'); doc.setFontSize(9.5); };
+  const para = t=>{ const L=doc.splitTextToSize(pdfTxt(t),W-2*M-4);
+    if(y+L.length*4.6>BAS){ doc.addPage(); y=18; }
+    doc.text(L,M+4,y); y+=L.length*4.6+1.6; };
+  const puce = t=>{ const L=doc.splitTextToSize(pdfTxt(t),W-2*M-8);
+    if(y+L.length*4.6>BAS){ doc.addPage(); y=18; }
+    doc.text('-',M+1.5,y); doc.text(L,M+6,y); y+=L.length*4.6+1.4; };
+  const tableau = (head,body,opts={})=>{
+    doc.autoTable(Object.assign({startY:y,head:[head.map(pdfTxt)],body:body.map(r=>r.map(pdfTxt)),
+      margin:{left:M,right:M,bottom:16},styles:{fontSize:8,cellPadding:1.8,textColor:[30,36,33],lineColor:[217,224,221],lineWidth:.1},
+      headStyles:{fillColor:VERT,textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[244,246,245]}},opts));
+    y=doc.lastAutoTable.finalY+8; };
+  const colorPct = (data,col)=>{ if(data.section==='body' && (Array.isArray(col)?col.includes(data.column.index):data.column.index===col)){
+    const m=String(data.cell.raw).match(/(\d+(?:,\d+)?)\s*%/); if(m){ const p=parseFloat(m[1].replace(',','.')); data.cell.styles.textColor=RGB[dec(p).cls]; data.cell.styles.fontStyle='bold'; } } };
+
+  // ---------- 1. Synthèse
+  titre('1. Synthèse générale');
+  const nbAg = new Set(list.map(e=>(e.nom||'').trim().toLowerCase()+'|'+e.corps+'|'+e.centre)).size;
+  tableau(['Indicateur','Valeur'],[
+    ['Évaluations analysées',String(s.n)],
+    ['Agents évalués',String(nbAg)],
+    ['Formations sanitaires concernées',String(nb(list,'centre'))],
+    ['Performance moyenne générale',fmt(s.avg)+' % ('+dec(s.avg).t+')'],
+    ['Performance minimale / maximale',fmt(s.min)+' % / '+fmt(s.max)+' %'],
+    ['Très bon (80 % et plus) : reconduire',s.g+' ('+Math.round(s.g/s.n*100)+' %)'],
+    ['Avec réserve (60 à moins de 80 %) : contrat de 3 mois',s.m+' ('+Math.round(s.m/s.n*100)+' %)'],
+    ['Blâme (moins de 60 %) : contrat non renouvelé',s.b+' ('+Math.round(s.b/s.n*100)+' %)']
+  ],{columnStyles:{0:{cellWidth:110},1:{fontStyle:'bold'}}});
+
+  // données agrégées
+  const gc=groupBy(list,'corps'), gz=groupBy(list,'centre');
+  const rowsC=Object.keys(gc).map(k=>({k,x:stats(gc[k])})).sort((a,b)=>b.x.avg-a.x.avg);
+  const rowsZ=Object.keys(gz).map(k=>({k,x:stats(gz[k])})).sort((a,b)=>b.x.avg-a.x.avg);
+  const ag={}; list.forEach(e=>{ const k=(e.nom||'').trim().toLowerCase()+'|'+e.corps+'|'+e.centre; (ag[k]=ag[k]||[]).push(e); });
+  const agRows=Object.values(ag).map(arr=>{
+    const so=[...arr].sort((a,b)=>(a.date+a.recu).localeCompare(b.date+b.recu)), last=so[so.length-1];
+    return {nom:last.nom,corps:last.corps,centre:last.centre,n:arr.length,last,avg:stats(arr).avg,first:so[0],multi:so.length>1};
+  }).sort((a,b)=>b.avg-a.avg);
+  const idCorps={}; list.forEach(e=>idCorps[e.id]=e.corps);
+  const agg={}; DATA.details.forEach(d=>{ const c=idCorps[d.id]; if(!c||d.na||!d.max) return;
+    const key=c+'||'+d.code; const o=agg[key]=agg[key]||{corps:c,item:d.item,s:0,m:0,n:0}; o.s+=d.note; o.m+=d.max; o.n++; });
+  const crit=Object.values(agg).map(o=>({...o,p:o.s/o.m*100}));
+
+  // ---------- 2. Lecture analytique
+  titre('2. Lecture analytique');
+  para(`Sur ${s.n} évaluation(s) concernant ${nbAg} agent(s) dans ${nb(list,'centre')} formation(s) sanitaire(s), la performance moyenne est de ${fmt(s.avg)} % (${dec(s.avg).t}).`);
+  para(`${s.g} évaluation(s) (${Math.round(s.g/s.n*100)} %) atteignent 80 % et plus, ${s.m} (${Math.round(s.m/s.n*100)} %) se situent entre 60 et 80 %, et ${s.b} (${Math.round(s.b/s.n*100)} %) sont inférieures à 60 %.`);
+  if(rowsC.length>1){
+    const a=rowsC[0], b=rowsC[rowsC.length-1];
+    para(`Par type d’agent, le mieux noté est « ${a.k} » (${fmt(a.x.avg)} %, ${a.x.n} évaluation(s)) et le moins bien noté est « ${b.k} » (${fmt(b.x.avg)} %, ${b.x.n} évaluation(s)).`);
+  } else if(rowsC.length===1) para(`Un seul type d’agent est concerné : « ${rowsC[0].k} » (${fmt(rowsC[0].x.avg)} %).`);
+  if(rowsZ.length>1){
+    const a=rowsZ[0], b=rowsZ[rowsZ.length-1];
+    para(`Par formation sanitaire, la meilleure moyenne est celle de « ${a.k} » (${fmt(a.x.avg)} %, ${a.x.n} évaluation(s)) et la plus faible celle de « ${b.k} » (${fmt(b.x.avg)} %, ${b.x.n} évaluation(s)).`);
+  }
+  const faibles=agRows.filter(r=>r.avg<SEUIL_RESERVE);
+  para(faibles.length ? `Agents dont la performance moyenne est inférieure à 60 % (${faibles.length}) : `+faibles.slice(0,8).map(r=>`${r.nom} (${fmt(r.avg)} %)`).join(', ')+(faibles.length>8?' et '+(faibles.length-8)+' autre(s)':'')+'.'
+    : 'Aucun agent n’a une performance moyenne inférieure à 60 %.');
+  const multi=agRows.filter(r=>r.multi);
+  if(multi.length){
+    const up=multi.filter(r=>r.last.pct>r.first.pct).length, down=multi.filter(r=>r.last.pct<r.first.pct).length;
+    para(`Évolution : parmi les ${multi.length} agent(s) évalué(s) plusieurs fois, ${up} ont progressé, ${down} ont reculé et ${multi.length-up-down} sont stables entre la première et la dernière évaluation.`);
+  }
+  const bas=crit.filter(o=>o.n>=1).sort((a,b)=>a.p-b.p).slice(0,5);
+  if(bas.length){ para('Critères les moins bien réussis (tous types d’agent confondus) :'); bas.forEach(o=>puce(`${o.item} (${o.corps}) : ${fmt(o.p)} % de réussite sur ${o.n} évaluation(s)`)); }
+  doc.setTextColor(...GRIS); doc.setFontSize(8.5);
+  para('Remarque : les moyennes des groupes de petit effectif sont à interpréter avec prudence. Les critères « non applicable » sont exclus du calcul des scores.');
+  doc.setTextColor(30,36,33); doc.setFontSize(9.5); y+=2;
+
+  // ---------- 3. Répartition
+  if(y>BAS-62){ doc.addPage(); y=18; }   // le titre et le graphique restent ensemble
+  titre('3. Répartition des performances');
+  const bins=Array(10).fill(0); list.forEach(e=>{ bins[Math.min(9,Math.floor(e.pct/10))]++; });
+  const mx=Math.max(1,...bins), hMax=34, bw=(W-2*M-10)/10;
+  if(y+hMax+16>BAS){ doc.addPage(); y=18; }
+  bins.forEach((c,i)=>{ const hh=c/mx*hMax, x=M+5+i*bw, col=i>=8?RGB.good:i>=6?RGB.mid:RGB.bad;
+    doc.setFillColor(...col); if(hh>0) doc.rect(x+1,y+hMax-hh,bw-2,hh,'F');
+    doc.setFontSize(8); doc.setTextColor(30,36,33); if(c) doc.text(String(c),x+bw/2,y+hMax-hh-1.2,{align:'center'});
+    doc.setTextColor(...GRIS); doc.text(i*10+(i===9?'-100':''),x+bw/2,y+hMax+4.5,{align:'center'}); });
+  doc.setDrawColor(...GRIS); doc.setLineWidth(.2); doc.line(M+5,y+hMax,W-M-5,y+hMax);
+  doc.setFontSize(8); doc.text('Nombre d’évaluations par tranche de performance (en %)',W/2,y+hMax+10,{align:'center'});
+  doc.setTextColor(30,36,33); y+=hMax+16;
+
+  // ---------- 4. Par type d'agent
+  titre('4. Performances par type d’agent évalué');
+  tableau(['Type d’agent','Éval.','Moyenne','Min','Max','Très bon','Réserve','Blâme'],
+    rowsC.map(({k,x})=>[k,x.n,fmt(x.avg)+' %',fmt(x.min)+' %',fmt(x.max)+' %',x.g,x.m,x.b]),
+    {didParseCell:d=>colorPct(d,2),columnStyles:{0:{cellWidth:62}}});
+
+  // ---------- 5. Par formation sanitaire
+  titre('5. Performances par formation sanitaire');
+  tableau(['Formation sanitaire','Éval.','Moyenne','Très bon','Réserve','Blâme'],
+    rowsZ.map(({k,x})=>[k,x.n,fmt(x.avg)+' %',x.g,x.m,x.b]),
+    {didParseCell:d=>colorPct(d,2),columnStyles:{0:{cellWidth:70}}});
+
+  // ---------- 6. Croisement
+  const corpsList=Object.keys(gc).sort((a,b)=>a.localeCompare(b,'fr')), centreList=Object.keys(gz).sort((a,b)=>a.localeCompare(b,'fr'));
+  if(corpsList.length>1 && centreList.length>1){
+    titre('6. Formation sanitaire / type d’agent (moyenne et nombre d’évaluations)');
+    tableau(['Formation sanitaire'].concat(corpsList),
+      centreList.map(c=>[c].concat(corpsList.map(k=>{ const sub=list.filter(e=>e.centre===c&&e.corps===k); if(!sub.length) return '-'; const x=stats(sub); return fmt(x.avg)+' % ('+x.n+')'; }))),
+      {didParseCell:d=>colorPct(d,corpsList.map((_,i)=>i+1)),styles:{fontSize:7.5,cellPadding:1.6}});
+  }
+
+  // ---------- 7. Par agent
+  titre('7. Performances par agent évalué');
+  tableau(['Agent','Type d’agent','Formation sanitaire','Éval.','Dernière','Moyenne','Statut'],
+    agRows.map(r=>[r.nom,r.corps,r.centre,r.n,fmt(r.last.pct)+' %',fmt(r.avg)+' %',dec(r.avg).t]),
+    {didParseCell:d=>{ colorPct(d,[4,5]); if(d.section==='body'&&d.column.index===6){ d.cell.styles.textColor=RGB[({'Très bon':'good','Avec réserve':'mid','Blâme':'bad'})[d.cell.raw]||'good']; d.cell.styles.fontStyle='bold'; } },
+     styles:{fontSize:7.5,cellPadding:1.6},columnStyles:{0:{cellWidth:34},1:{cellWidth:36}}});
+
+  // ---------- 8. Critères faibles par type d'agent
+  const byC={}; crit.forEach(o=>(byC[o.corps]=byC[o.corps]||[]).push(o));
+  const ck=Object.keys(byC).sort();
+  if(ck.length){
+    titre('8. Critères les moins bien réussis par type d’agent');
+    ck.forEach(c=>{
+      const rows=byC[c].sort((a,b)=>a.p-b.p).slice(0,6).map(o=>[o.item,fmt(o.p)+' %',o.n]);
+      tableau([c,'Réussite','Éval.'],rows,{didParseCell:d=>colorPct(d,1),columnStyles:{0:{cellWidth:120}},headStyles:{fillColor:[60,90,78],textColor:255}});
+    });
+  }
+
+  // ---------- pied de page
+  const N=doc.getNumberOfPages();
+  for(let i=1;i<=N;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(...GRIS);
+    doc.text(pdfTxt('Document confidentiel – usage administratif – ZS Djidja-Abomey-Agbangnizoun'),M,290);
+    doc.text('Page '+i+' / '+N,W-M,290,{align:'right'}); }
+  return doc;
+}
+
+function telechargerPDF(btn){
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Le module PDF n’a pas pu être chargé. Vérifiez la connexion internet puis rechargez la page.'); return; }
+  const list=filtered();
+  if(!list.length){ alert('Aucune évaluation à inclure dans le rapport (vérifiez les filtres).'); return; }
+  const t=btn.textContent; btn.disabled=true; btn.textContent='Génération du PDF…';
+  setTimeout(()=>{
+    try{
+      const doc=construirePDF(list);
+      doc.save('rapport_performance_'+new Date().toISOString().slice(0,10)+'.pdf');
+    }catch(e){ alert('Erreur lors de la génération du PDF : '+e.message); }
+    btn.disabled=false; btn.textContent=t;
+  },30);
+}
+document.querySelectorAll('[data-pdf]').forEach(b=>b.addEventListener('click',()=>telechargerPDF(b)));
 
 /* ===== Export CSV ===== */
 $('csv').addEventListener('click',()=>{
