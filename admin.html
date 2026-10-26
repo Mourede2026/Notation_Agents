@@ -66,6 +66,7 @@ tr.click:hover{background:var(--chip)}
 @media (max-width:560px){.crow{grid-template-columns:1fr}}
 .crow.isna{opacity:.6}
 .score{position:sticky;top:0;background:var(--card);padding:8px 0;margin:8px 0;border-bottom:1px solid var(--line);z-index:2}
+.danger{border-color:var(--bad)!important;color:var(--bad)!important}
 .edbtn{min-height:36px;padding:4px 10px;font-size:.8rem;border-color:var(--brand);color:var(--brand)}
 .dline{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
 </style>
@@ -302,11 +303,12 @@ function renderList(list){
     return (typeof x==='number'? x-y : String(x).localeCompare(String(y),'fr'))*sortDir; });
   $('tList').innerHTML = `<table><thead><tr>${cols.map(([k,l])=>k?`<th class="sort" data-k="${k}">${l}${sortKey===k?(sortDir>0?' ▲':' ▼'):''}</th>`:`<th>${l}</th>`).join('')}</tr></thead><tbody>`+
     (sorted.map(e=>{ const d=dec(e.pct);
-      return `<tr class="click" data-id="${esc(e.id)}"><td><button type="button" class="edbtn" data-edit="${esc(e.id)}">Ouvrir / Modifier</button></td><td>${esc(e.date)}</td><td>${esc(e.nom)}</td><td>${esc(e.corps)}</td><td>${esc(e.centre)}</td><td>${esc(e.periode)}</td><td>${esc(e.evaluateur)}</td><td class="n"><b class="${d.cls}">${fmt(e.pct)} %</b></td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }).join('')
+      return `<tr class="click" data-id="${esc(e.id)}"><td><button type="button" class="edbtn" data-edit="${esc(e.id)}">Ouvrir / Modifier</button> <button type="button" class="edbtn danger" data-del="${esc(e.id)}">Supprimer</button></td><td>${esc(e.date)}</td><td>${esc(e.nom)}</td><td>${esc(e.corps)}</td><td>${esc(e.centre)}</td><td>${esc(e.periode)}</td><td>${esc(e.evaluateur)}</td><td class="n"><b class="${d.cls}">${fmt(e.pct)} %</b></td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }).join('')
       || `<tr><td colspan="9" style="color:var(--muted)">Aucune évaluation</td></tr>`)+`</tbody></table>`;
 }
 $('tAgent').addEventListener('click',e=>{ const tr=e.target.closest('tr.click'); if(tr) openDetail(tr.dataset.id); });
 $('tList').addEventListener('click',e=>{
+  const db=e.target.closest('[data-del]'); if(db){ supprimer(db.dataset.del, db); return; }
   const eb=e.target.closest('[data-edit]'); if(eb){ openEditor(eb.dataset.edit); return; }
   const th=e.target.closest('th.sort');
   if(th){ const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(k==='pct'||k==='dec'||k==='date')?-1:1;} renderList(filtered()); return; }
@@ -379,13 +381,30 @@ function openEditor(id){
       </select></div>`;
   });
   h+=`<div id="eErr" class="err hide"></div>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button id="eSave" class="pri" type="button">Enregistrer les modifications</button><button id="eCancel" type="button">Annuler</button></div></div>`;
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button id="eSave" class="pri" type="button">Enregistrer les modifications</button><button id="eCancel" type="button">Annuler</button><button id="eDel" class="danger" type="button" style="margin-left:auto">Supprimer cette évaluation</button></div></div>`;
   $('modalBox').innerHTML=h; $('modal').classList.remove('hide');
   $('eClose').addEventListener('click',closeModal); $('eCancel').addEventListener('click',closeModal);
   $('modalBox').querySelectorAll('select[data-i]').forEach(s=>s.addEventListener('change',()=>{
     $('crow'+s.dataset.i).classList.toggle('isna',s.value==='na'); editScore(); }));
   $('eSave').addEventListener('click',saveEdit);
+  $('eDel').addEventListener('click',()=>supprimer(id,$('eDel')));
   editScore();
+}
+async function supprimer(id,btn){
+  const ev=DATA.evals.find(e=>e.id===id); if(!ev) return;
+  if(!confirm(`Supprimer l’évaluation de ${ev.nom} (${ev.date}) ?\n\nElle disparaîtra de la liste et des statistiques. Une copie est gardée dans l’onglet « Corbeille » du Google Sheets.`)) return;
+  const txt=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Suppression…'; }
+  try{
+    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'delete',password:ssGet(),id})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Erreur serveur');
+    DATA.evals=DATA.evals.filter(e=>e.id!==id); DATA.details=DATA.details.filter(d=>d.id!==id);
+    $('modal').classList.add('hide'); EDIT=null;
+    initFilters(true); render();
+  }catch(e){
+    alert(e.message==='Failed to fetch' ? 'Connexion impossible. Vérifiez internet.' : e.message);
+    if(btn){ btn.disabled=false; btn.textContent=txt; }
+  }
 }
 function closeModal(){ $('modal').classList.add('hide'); EDIT=null; }
 function editLignes(){

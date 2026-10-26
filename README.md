@@ -8,7 +8,7 @@
 Les données sont envoyées à un Google Sheets via un script Google Apps Script (URL dans la constante `APPS_SCRIPT_URL` des deux fichiers HTML).
 
 ## Administration
-Sur `admin.html`, chaque ligne de la liste a un bouton « Ouvrir / Modifier » : l’administrateur corrige l’identité de l’agent et les notes des critères, puis enregistre. La performance est recalculée et le Google Sheets est mis à jour.
+Sur `admin.html`, chaque ligne de la liste a un bouton « Ouvrir / Modifier » : l’administrateur corrige l’identité de l’agent et les notes des critères, puis enregistre. La performance est recalculée et le Google Sheets est mis à jour. Un bouton « Supprimer » retire une évaluation ; une copie est gardée dans l’onglet « Corbeille » du Sheets.
 
 ## Fonctionnement hors connexion
 1. Ouvrir le lien **une première fois avec internet** : le formulaire se copie dans le téléphone.
