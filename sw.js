@@ -2,8 +2,8 @@
    Stratégie : page HTML en « réseau d’abord » (avec repli sur la copie locale),
    autres fichiers en « cache d’abord ». Les envois vers Google ne sont jamais interceptés.
    Changez le numéro de VERSION à chaque grosse mise à jour pour forcer le renouvellement. */
-const VERSION = 'eval-v2';
-const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'eval-v3';
+const PRECACHE = ['./', 'index.html', 'grilles.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
@@ -54,6 +54,6 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;          // Google Apps Script : jamais intercepté
   if (url.pathname.endsWith('/admin.html')) return;          // l’administration exige une connexion
-  const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+  const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname.endsWith('/');
   e.respondWith(isHtml ? networkFirst(req) : cacheFirst(req));
 });

@@ -59,6 +59,14 @@ tr.click:hover{background:var(--chip)}
 .modal{position:fixed;inset:0;background:#0009;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto;z-index:20}
 .modal .box{background:var(--card);border-radius:14px;max-width:720px;width:100%;padding:16px;border:1px solid var(--line)}
 .sec{margin:14px 0 4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--brand);font-weight:700}
+.ed label{display:block;font-size:.78rem;color:var(--muted);margin:10px 0 3px}
+.ed .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.ed .g2{grid-template-columns:1fr}}
+.crow{display:grid;grid-template-columns:1fr 170px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+@media (max-width:560px){.crow{grid-template-columns:1fr}}
+.crow.isna{opacity:.6}
+.score{position:sticky;top:0;background:var(--card);padding:8px 0;margin:8px 0;border-bottom:1px solid var(--line);z-index:2}
+.edbtn{min-height:36px;padding:4px 10px;font-size:.8rem;border-color:var(--brand);color:var(--brand)}
 .dline{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
 </style>
 </head>
@@ -81,8 +89,8 @@ tr.click:hover{background:var(--chip)}
     <div class="card">
       <h2>Filtres</h2>
       <div class="filters">
-        <div><label for="fCorps">Corps de métier</label><select id="fCorps"></select></div>
-        <div><label for="fCentre">Centre de santé</label><select id="fCentre"></select></div>
+        <div><label for="fCorps">Type d’agent</label><select id="fCorps"></select></div>
+        <div><label for="fCentre">Formation sanitaire</label><select id="fCentre"></select></div>
         <div><label for="fPeriode">Période</label><select id="fPeriode"></select></div>
         <div><label for="fDec">Décision</label>
           <select id="fDec"><option value="">Toutes</option><option value="TRES_BON">Très bon (≥ 80 %)</option><option value="RESERVE">Avec réserve (60–80 %)</option><option value="BLAME">Blâme (&lt; 60 %)</option></select></div>
@@ -92,13 +100,19 @@ tr.click:hover{background:var(--chip)}
 
     <div class="kpis" id="kpis"></div>
 
-    <div class="card"><h2>Statistiques par corps de métier</h2><div class="tw" id="tCorps"></div>
+    <div class="card"><h2>Performances par type d’agent évalué</h2><div class="tw" id="tCorps"></div>
       <div class="legend"><span><i style="background:var(--good)"></i>Très bon</span><span><i style="background:var(--warn)"></i>Avec réserve</span><span><i style="background:var(--bad)"></i>Blâme</span></div></div>
 
-    <div class="card"><h2>Répartition des performances</h2><div class="hist" id="hist"></div>
+    <div class="card"><h2>Ensemble : répartition des performances</h2><div class="hist" id="hist"></div>
       <div class="legend"><span>Nombre d’évaluations par tranche de 10 %</span></div></div>
 
-    <div class="card"><h2>Statistiques par centre de santé</h2><div class="tw" id="tCentre"></div></div>
+    <div class="card"><h2>Performances par formation sanitaire</h2><div class="tw" id="tCentre"></div></div>
+
+    <div class="card"><h2>Formation sanitaire × type d’agent (performance moyenne)</h2><div class="tw" id="tMatrix"></div>
+      <div class="legend"><span>Chaque case : moyenne en % et (nombre d’évaluations)</span></div></div>
+
+    <div class="card"><h2>Performances par agent évalué</h2><div class="tw" id="tAgent"></div>
+      <div class="legend"><span>Cliquez sur une ligne pour voir la dernière évaluation de l’agent, critère par critère</span></div></div>
 
     <div class="card"><h2>Critères les moins bien réussis (par corps)</h2><div id="weak"></div></div>
 
@@ -114,6 +128,7 @@ tr.click:hover{background:var(--chip)}
 
 <div id="modal" class="modal hide"><div class="box" id="modalBox"></div></div>
 
+<script src="grilles.js"></script>
 <script>
 /* ===== CONFIGURATION : même URL que le formulaire ===== */
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhrW3aFcugrcpPNknq0Xwyk1SLryu1cnuDlVKbZDCpaUplu8Jxj1eg5WbPfrp9E467JA/exec';
@@ -136,7 +151,19 @@ async function load(pw){
   const r = await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'admin',password:pw})});
   const j = await r.json();
   if(!j.ok) throw new Error(j.error||'Erreur serveur');
-  DATA = j; return j;
+  DATA = j; normalize(); return j;
+}
+/* La performance est recalculée à partir du détail des critères (note / maximum, hors « non applicable »).
+   Cela corrige les évaluations enregistrées avec une note à zéro par une ancienne version du script. */
+function normalize(){
+  const sums={};
+  DATA.details.forEach(d=>{ const o=sums[d.id]=sums[d.id]||{s:0,m:0};
+    if(!d.na){ o.s+=Number(d.note)||0; o.m+=Number(d.max)||0; } });
+  DATA.evals.forEach(e=>{
+    const o=sums[e.id];
+    if(o && o.m>0){ e.note=o.s; e.maximum=o.m; e.pct=Math.round(o.s/o.m*1000)/10; }
+    else if(!isFinite(e.pct)) e.pct=0;
+  });
 }
 async function login(pw){
   $('loginBtn').disabled=true; $('loginBtn').textContent='Connexion…'; $('loginErr').classList.add('hide');
@@ -165,8 +192,8 @@ function fillSelect(id,values,allLabel){
 }
 const uniq = k => [...new Set(DATA.evals.map(e=>e[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
 function initFilters(keep){
-  fillSelect('fCorps',uniq('corps'),'Tous les corps');
-  fillSelect('fCentre',uniq('centre'),'Tous les centres');
+  fillSelect('fCorps',uniq('corps'),'Tous les types d’agent');
+  fillSelect('fCentre',uniq('centre'),'Toutes les formations sanitaires');
   fillSelect('fPeriode',uniq('periode'),'Toutes les périodes');
 }
 ['fCorps','fCentre','fPeriode','fDec'].forEach(i=>$(i).addEventListener('change',render));
@@ -199,7 +226,7 @@ function render(){
 
   $('kpis').innerHTML = [
     ['Évaluations',s.n,''],
-    ['Performance moyenne', s.n?fmt(s.avg)+' %':'—', s.n?dec(s.avg).cls:''],
+    ['Performance moyenne générale', s.n?fmt(s.avg)+' %':'—', s.n?dec(s.avg).cls:''],
     ['Très bon (≥ 80 %)', s.g+(s.n?` · ${Math.round(s.g/s.n*100)} %`:''),'good'],
     ['Avec réserve (60–80 %)', s.m+(s.n?` · ${Math.round(s.m/s.n*100)} %`:''),'mid'],
     ['Blâme (< 60 %)', s.b+(s.n?` · ${Math.round(s.b/s.n*100)} %`:''),'bad']
@@ -207,7 +234,7 @@ function render(){
 
   // par corps
   const gc = groupBy(list,'corps');
-  $('tCorps').innerHTML = tableHtml(['Corps','Évaluations','Moyenne','Min','Max','Très bon','Réserve','Blâme','Répartition'],
+  $('tCorps').innerHTML = tableHtml(['Type d’agent','Évaluations','Moyenne','Min','Max','Très bon','Réserve','Blâme','Répartition'],
     Object.keys(gc).sort().map(k=>{ const x=stats(gc[k]);
       return `<tr><td>${esc(k)}</td><td class="n">${x.n}</td><td class="n"><b class="${dec(x.avg).cls}">${fmt(x.avg)} %</b></td><td class="n">${fmt(x.min)} %</td><td class="n">${fmt(x.max)} %</td><td class="n">${x.g}</td><td class="n">${x.m}</td><td class="n">${x.b}</td><td>${stackBar(x)}</td></tr>`; }), [1,2,3,4,5,6,7]);
 
@@ -219,9 +246,34 @@ function render(){
 
   // par centre
   const gz = groupBy(list,'centre');
-  $('tCentre').innerHTML = tableHtml(['Centre de santé','Évaluations','Moyenne','Très bon','Réserve','Blâme','Répartition'],
+  $('tCentre').innerHTML = tableHtml(['Formation sanitaire','Évaluations','Moyenne','Très bon','Réserve','Blâme','Répartition'],
     Object.keys(gz).map(k=>[k,stats(gz[k])]).sort((a,b)=>b[1].avg-a[1].avg).map(([k,x])=>
       `<tr><td>${esc(k)}</td><td class="n">${x.n}</td><td class="n"><b class="${dec(x.avg).cls}">${fmt(x.avg)} %</b></td><td class="n">${x.g}</td><td class="n">${x.m}</td><td class="n">${x.b}</td><td>${stackBar(x)}</td></tr>`),[1,2,3,4,5]);
+
+  // matrice formation sanitaire × type d'agent
+  const corpsList=[...new Set(list.map(e=>e.corps))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const centreList=Object.keys(gz).sort((a,b)=>a.localeCompare(b,'fr'));
+  $('tMatrix').innerHTML = tableHtml(['Formation sanitaire'].concat(corpsList).concat(['Toutes']),
+    centreList.map(c=>{
+      const cells=corpsList.map(k=>{ const sub=list.filter(e=>e.centre===c&&e.corps===k);
+        if(!sub.length) return '<td class="n" style="color:var(--muted)">—</td>';
+        const x=stats(sub); return `<td class="n"><b class="${dec(x.avg).cls}">${fmt(x.avg)} %</b> <small style="color:var(--muted)">(${x.n})</small></td>`; }).join('');
+      const t=stats(gz[c]);
+      return `<tr><td>${esc(c)}</td>${cells}<td class="n"><b class="${dec(t.avg).cls}">${fmt(t.avg)} %</b> <small style="color:var(--muted)">(${t.n})</small></td></tr>`;
+    }), corpsList.map((_,i)=>i+1).concat([corpsList.length+1]));
+
+  // par agent évalué
+  const ag={};
+  list.forEach(e=>{ const k=(e.nom||'').trim().toLowerCase()+'|'+e.corps+'|'+e.centre; (ag[k]=ag[k]||[]).push(e); });
+  const agRows=Object.values(ag).map(arr=>{
+    const sorted=[...arr].sort((a,b)=>(a.date+a.recu).localeCompare(b.date+b.recu));
+    const last=sorted[sorted.length-1], x=stats(arr);
+    return {nom:last.nom, corps:last.corps, centre:last.centre, n:arr.length, last, avg:x.avg, prev: sorted.length>1? sorted[sorted.length-2].pct : null};
+  }).sort((a,b)=>b.avg-a.avg);
+  $('tAgent').innerHTML = tableHtml(['Agent','Type d’agent','Formation sanitaire','Évaluations','Dernière','Moyenne','Évolution','Statut (moyenne)'],
+    agRows.map(r=>{ const d=dec(r.avg);
+      const evo = r.prev===null ? '—' : (r.last.pct-r.prev>0 ? `<span class="good">▲ +${fmt(r.last.pct-r.prev)}</span>` : r.last.pct-r.prev<0 ? `<span class="bad">▼ ${fmt(r.last.pct-r.prev)}</span>` : '=');
+      return `<tr class="click" data-id="${esc(r.last.id)}"><td>${esc(r.nom)}</td><td>${esc(r.corps)}</td><td>${esc(r.centre)}</td><td class="n">${r.n}</td><td class="n">${fmt(r.last.pct)} %</td><td class="n"><span class="bar1" style="width:${Math.max(3,r.avg*0.6)}px;background:${COL[d.cls]}"></span><b class="${d.cls}">${fmt(r.avg)} %</b></td><td class="n">${evo}</td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }),[3,4,5,6]);
 
   // critères faibles
   const idCorps={}; list.forEach(e=>idCorps[e.id]=e.corps);
@@ -244,16 +296,18 @@ function tableHtml(head,rows,numCols){
 
 function renderList(list){
   $('cnt').textContent = list.length;
-  const cols=[['date','Date'],['nom','Agent'],['corps','Corps'],['centre','Centre'],['periode','Période'],['evaluateur','Évaluateur'],['pct','Performance'],['dec','Décision']];
+  const cols=[['','Action'],['date','Date'],['nom','Agent'],['corps','Type d’agent'],['centre','Formation sanitaire'],['periode','Période'],['evaluateur','Évaluateur'],['pct','Performance'],['dec','Décision']];
   const val=(e,k)=> k==='dec'? e.pct : e[k];
   const sorted=[...list].sort((a,b)=>{ const x=val(a,sortKey), y=val(b,sortKey);
     return (typeof x==='number'? x-y : String(x).localeCompare(String(y),'fr'))*sortDir; });
-  $('tList').innerHTML = `<table><thead><tr>${cols.map(([k,l])=>`<th class="sort" data-k="${k}">${l}${sortKey===k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>`+
+  $('tList').innerHTML = `<table><thead><tr>${cols.map(([k,l])=>k?`<th class="sort" data-k="${k}">${l}${sortKey===k?(sortDir>0?' ▲':' ▼'):''}</th>`:`<th>${l}</th>`).join('')}</tr></thead><tbody>`+
     (sorted.map(e=>{ const d=dec(e.pct);
-      return `<tr class="click" data-id="${esc(e.id)}"><td>${esc(e.date)}</td><td>${esc(e.nom)}</td><td>${esc(e.corps)}</td><td>${esc(e.centre)}</td><td>${esc(e.periode)}</td><td>${esc(e.evaluateur)}</td><td class="n"><b class="${d.cls}">${fmt(e.pct)} %</b></td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }).join('')
-      || `<tr><td colspan="8" style="color:var(--muted)">Aucune évaluation</td></tr>`)+`</tbody></table>`;
+      return `<tr class="click" data-id="${esc(e.id)}"><td><button type="button" class="edbtn" data-edit="${esc(e.id)}">Ouvrir / Modifier</button></td><td>${esc(e.date)}</td><td>${esc(e.nom)}</td><td>${esc(e.corps)}</td><td>${esc(e.centre)}</td><td>${esc(e.periode)}</td><td>${esc(e.evaluateur)}</td><td class="n"><b class="${d.cls}">${fmt(e.pct)} %</b></td><td><span class="pill ${d.cls}">${d.t}</span></td></tr>`; }).join('')
+      || `<tr><td colspan="9" style="color:var(--muted)">Aucune évaluation</td></tr>`)+`</tbody></table>`;
 }
+$('tAgent').addEventListener('click',e=>{ const tr=e.target.closest('tr.click'); if(tr) openDetail(tr.dataset.id); });
 $('tList').addEventListener('click',e=>{
+  const eb=e.target.closest('[data-edit]'); if(eb){ openEditor(eb.dataset.edit); return; }
   const th=e.target.closest('th.sort');
   if(th){ const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(k==='pct'||k==='dec'||k==='date')?-1:1;} renderList(filtered()); return; }
   const tr=e.target.closest('tr.click'); if(tr) openDetail(tr.dataset.id);
@@ -263,15 +317,117 @@ $('tList').addEventListener('click',e=>{
 function openDetail(id){
   const ev = DATA.evals.find(e=>e.id===id); if(!ev) return;
   const rows = DATA.details.filter(d=>d.id===id), d = dec(ev.pct);
-  let h = `<div style="display:flex;justify-content:space-between;gap:10px"><div><h2 style="margin:0">${esc(ev.nom)}</h2><div style="color:var(--muted)">${esc(ev.qualification)} · ${esc(ev.corps)}<br>${esc(ev.centre)} · ${esc(ev.date)} ${ev.periode?'· '+esc(ev.periode):''}<br>Évaluateur : ${esc(ev.evaluateur)}</div></div><button id="mClose" type="button">Fermer</button></div>
+  let h = `<div style="display:flex;justify-content:space-between;gap:10px"><div><h2 style="margin:0">${esc(ev.nom)}</h2><div style="color:var(--muted)">${esc(ev.qualification)} · ${esc(ev.corps)}<br>${esc(ev.centre)} · ${esc(ev.date)} ${ev.periode?'· '+esc(ev.periode):''}<br>Évaluateur : ${esc(ev.evaluateur)}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start"><button id="mEdit" class="pri" type="button">Ouvrir / Modifier</button><button id="mClose" type="button">Fermer</button></div></div>
     <p style="font-size:1.4rem;margin:12px 0 0"><b class="${d.cls}">${fmt(ev.pct)} %</b> <span class="pill ${d.cls}">${d.t}</span> <span style="color:var(--muted);font-size:.85rem">(${ev.note} / ${ev.maximum})</span></p>`;
   let cur='';
   rows.forEach(r=>{ if(r.section!==cur){ cur=r.section; h+=`<div class="sec">${esc(cur)}</div>`; }
     h+=`<div class="dline"><span>${esc(r.item)}</span><b class="${r.na?'':(r.note>=r.max?'good':r.note>0?'mid':'bad')}">${r.na?'NA':r.note+' / '+r.max}</b></div>`; });
   $('modalBox').innerHTML=h; $('modal').classList.remove('hide');
   $('mClose').addEventListener('click',()=>$('modal').classList.add('hide'));
+  $('mEdit').addEventListener('click',()=>openEditor(id));
 }
-$('modal').addEventListener('click',e=>{ if(e.target===$('modal')) $('modal').classList.add('hide'); });
+
+/* ===== Éditeur : ouvrir / modifier une évaluation existante ===== */
+function grilleDe(label){ if(typeof GRIDS==='undefined') return null; return Object.values(GRIDS).find(g=>g.label===label)||null; }
+function defCritere(label,code){
+  const g=grilleDe(label); if(!g) return null;
+  for(const s of g.sections) for(const it of s.items) if(it.id===code) return it;
+  return null;
+}
+function optionsDe(def,r){
+  // renvoie {max, vals:[{v,l}], fige}
+  let max, vals=[];
+  if(def){
+    max=def.max;
+    if(def.type==='crit'){
+      const step=Math.min(...def.crit.map(c=>c.w));
+      for(let v=0; v<=max+1e-9; v+=step) vals.push({v, l:`${v} / ${max}`});
+    } else {
+      vals=[{v:max,l:`Oui · ${max}`},{v:0,l:'Non · 0'}];
+    }
+  } else {
+    max = r.na ? 0 : r.max;
+    vals = max>0 ? [{v:max,l:`Oui · ${max}`},{v:0,l:'Non · 0'}] : [];
+  }
+  if(!r.na && !vals.some(x=>x.v===r.note)) vals.push({v:r.note,l:`${r.note} / ${max}`});
+  return {max, vals, fige: (max<=0)};
+}
+let EDIT=null;
+function openEditor(id){
+  const ev=DATA.evals.find(e=>e.id===id); if(!ev) return;
+  const rows=DATA.details.filter(d=>d.id===id);
+  EDIT={id, ev, rows};
+  let h=`<div class="ed"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2 style="margin:0">Ouvrir / Modifier l’évaluation</h2><div style="color:var(--muted)">${esc(ev.corps)}${ev.modifie?' · dernière modification : '+esc(ev.modifie):''}</div></div><button id="eClose" type="button">Fermer</button></div>
+    <div class="score"><span id="eScore" style="font-size:1.3rem;font-weight:800"></span> <span id="eDec" class="pill"></span> <span id="eNote" style="color:var(--muted);font-size:.82rem"></span></div>
+    <div class="g2">
+      <div><label>Nom et prénom de l’agent</label><input id="eNom" value="${esc(ev.nom)}"></div>
+      <div><label>Qualification</label><input id="eQual" value="${esc(ev.qualification)}"></div>
+      <div><label>Formation sanitaire</label><input id="eCentre" value="${esc(ev.centre)}"></div>
+      <div><label>Évaluateur</label><input id="eEval" value="${esc(ev.evaluateur)}"></div>
+      <div><label>Date de l’évaluation</label><input id="eDate" type="date" value="${esc(ev.date)}"></div>
+      <div><label>Période évaluée</label><input id="ePer" value="${esc(ev.periode)}"></div>
+    </div>`;
+  let cur='';
+  rows.forEach((r,i)=>{
+    if(r.section!==cur){ cur=r.section; h+=`<div class="sec">${esc(cur)}</div>`; }
+    const def=defCritere(ev.corps,r.code), o=optionsDe(def,r);
+    const sel = r.na ? 'na' : String(r.note);
+    h+=`<div class="crow ${r.na?'isna':''}" id="crow${i}"><span>${esc(r.item)}</span>
+      <select data-i="${i}" data-max="${o.max}" ${o.fige&&!r.na&&o.vals.length===0?'disabled':''}>
+        ${o.vals.map(x=>`<option value="${x.v}" ${String(x.v)===sel?'selected':''}>${x.l}</option>`).join('')}
+        <option value="na" ${sel==='na'?'selected':''} ${(!def&&o.max<=0&&!r.na)?'disabled':''}>Non applicable (exclu)</option>
+      </select></div>`;
+  });
+  h+=`<div id="eErr" class="err hide"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button id="eSave" class="pri" type="button">Enregistrer les modifications</button><button id="eCancel" type="button">Annuler</button></div></div>`;
+  $('modalBox').innerHTML=h; $('modal').classList.remove('hide');
+  $('eClose').addEventListener('click',closeModal); $('eCancel').addEventListener('click',closeModal);
+  $('modalBox').querySelectorAll('select[data-i]').forEach(s=>s.addEventListener('change',()=>{
+    $('crow'+s.dataset.i).classList.toggle('isna',s.value==='na'); editScore(); }));
+  $('eSave').addEventListener('click',saveEdit);
+  editScore();
+}
+function closeModal(){ $('modal').classList.add('hide'); EDIT=null; }
+function editLignes(){
+  return [...$('modalBox').querySelectorAll('select[data-i]')].map(s=>{
+    const r=EDIT.rows[+s.dataset.i], na=s.value==='na';
+    return {code:r.code, na, note: na?0:Number(s.value), max: na?0:Number(s.dataset.max)};
+  });
+}
+function editScore(){
+  const l=editLignes(); let s=0,m=0; l.forEach(x=>{ s+=x.note; m+=x.max; });
+  const p = m? Math.round(s/m*1000)/10 : 0, d=dec(p);
+  $('eScore').textContent = m? fmt(p)+' %' : '—';
+  $('eScore').className = m? d.cls : '';
+  $('eDec').textContent = m? d.t : ''; $('eDec').className='pill '+(m?d.cls:'');
+  $('eNote').textContent = m? `(${s} / ${m})` : '';
+}
+async function saveEdit(){
+  const lignes=editLignes();
+  if(!lignes.some(x=>!x.na)){ $('eErr').textContent='Au moins un critère doit être applicable.'; $('eErr').classList.remove('hide'); return; }
+  const fields={ nom:$('eNom').value.trim(), qualification:$('eQual').value.trim(), centre:$('eCentre').value.trim(),
+    evaluateur:$('eEval').value.trim(), date:$('eDate').value, periode:$('ePer').value.trim() };
+  if(!fields.nom||!fields.centre){ $('eErr').textContent='Le nom de l’agent et la formation sanitaire sont obligatoires.'; $('eErr').classList.remove('hide'); return; }
+  $('eSave').disabled=true; $('eSave').textContent='Enregistrement…'; $('eErr').classList.add('hide');
+  try{
+    const r=await fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'update',password:ssGet(),id:EDIT.id,fields,details:lignes})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'Erreur serveur');
+    // mise à jour locale
+    Object.assign(EDIT.ev,{nom:fields.nom,qualification:fields.qualification,centre:fields.centre,evaluateur:fields.evaluateur,date:fields.date||EDIT.ev.date,periode:fields.periode});
+    EDIT.rows.forEach(r=>{ const x=lignes.find(l=>l.code===r.code); if(x){ r.note=x.note; r.max=x.max; r.na=x.na; } });
+    DATA.details.forEach(d=>{ if(d.id===EDIT.id){ d.centre=fields.centre; } });
+    EDIT.ev.modifie=new Date().toISOString().slice(0,16).replace('T',' ');
+    normalize(); initFilters(true); render(); closeModal();
+    alert('Modification enregistrée. Nouvelle performance : '+String(j.pct).replace('.',',')+' % — '+j.decision+'.');
+  }catch(e){
+    $('eErr').textContent = e.message==='Failed to fetch' ? 'Connexion impossible. Vérifiez internet.' : e.message;
+    $('eErr').classList.remove('hide');
+    $('eSave').disabled=false; $('eSave').textContent='Enregistrer les modifications';
+  }
+}
+$('modal').addEventListener('click',e=>{ if(e.target===$('modal')) closeModal(); });
 
 /* ===== Export CSV ===== */
 $('csv').addEventListener('click',()=>{

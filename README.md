@@ -2,9 +2,13 @@
 
 - `index.html` : formulaire à remplir sur téléphone (4 grilles : sages-femmes, infirmiers, aides-soignants, commis).
 - `admin.html` : page administrateur (statistiques par corps, centre et performance), protégée par mot de passe côté serveur Google.
+- `grilles.js` : définition des 4 grilles (critères, points). **Seul fichier à modifier pour changer un barème.** Utilisé par le formulaire et par la page administrateur.
 - `sw.js`, `manifest.json`, `icon-192.png`, `icon-512.png` : permettent d’ouvrir le formulaire **sans connexion** et de l’installer sur l’écran d’accueil.
 
 Les données sont envoyées à un Google Sheets via un script Google Apps Script (URL dans la constante `APPS_SCRIPT_URL` des deux fichiers HTML).
+
+## Administration
+Sur `admin.html`, chaque ligne de la liste a un bouton « Ouvrir / Modifier » : l’administrateur corrige l’identité de l’agent et les notes des critères, puis enregistre. La performance est recalculée et le Google Sheets est mis à jour.
 
 ## Fonctionnement hors connexion
 1. Ouvrir le lien **une première fois avec internet** : le formulaire se copie dans le téléphone.
